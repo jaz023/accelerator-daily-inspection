@@ -1,4 +1,12 @@
-# vinext-starter
+# 加速器每日開關機巡檢系統
+
+正式原始碼放在此資料夾。每次修改前，先執行：
+
+```sh
+sh scripts/backup-before-update.sh
+```
+
+備份會自動放到上一層的 `備份/YYYYMMDD_HHMMSS_更新前/`。
 
 A clean full-stack starter running on
 [vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
