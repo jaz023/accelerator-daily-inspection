@@ -899,25 +899,43 @@ export default function Home() {
                 <option>Night shift</option>
               </select>
             </label>
-            <label>
-              Operator 1 *
-              <input
-                value={meta.operator1}
-                onChange={(e) =>
-                  setMeta({ ...meta, operator1: e.target.value })
-                }
-              />
-            </label>
-            {meta.workMode === "Two operators" && (
+            <div
+              className={`operatorEntry ${
+                meta.workMode === "Single-operator exception" ? "full" : ""
+              }`}
+            >
               <label>
-                Operator 2 *
+                Operator 1 *
                 <input
-                  value={meta.operator2}
+                  value={meta.operator1}
                   onChange={(e) =>
-                    setMeta({ ...meta, operator2: e.target.value })
+                    setMeta({ ...meta, operator1: e.target.value })
                   }
                 />
               </label>
+              <Signature
+                label="Operator 1 handwritten signature *"
+                value={meta.signature1}
+                onChange={(x) => setMeta({ ...meta, signature1: x })}
+              />
+            </div>
+            {meta.workMode === "Two operators" && (
+              <div className="operatorEntry">
+                <label>
+                  Operator 2 *
+                  <input
+                    value={meta.operator2}
+                    onChange={(e) =>
+                      setMeta({ ...meta, operator2: e.target.value })
+                    }
+                  />
+                </label>
+                <Signature
+                  label="Operator 2 handwritten signature *"
+                  value={meta.signature2}
+                  onChange={(x) => setMeta({ ...meta, signature2: x })}
+                />
+              </div>
             )}
           </section>
           {Object.entries(groups).map(([area, xs], n) => (
@@ -1002,20 +1020,6 @@ export default function Home() {
               ))}
             </section>
           ))}
-          <section className="signatures">
-            <Signature
-              label="Operator 1 signature"
-              value={meta.signature1}
-              onChange={(x) => setMeta({ ...meta, signature1: x })}
-            />
-            {meta.workMode === "Two operators" && (
-              <Signature
-                label="Operator 2 signature"
-                value={meta.signature2}
-                onChange={(x) => setMeta({ ...meta, signature2: x })}
-              />
-            )}
-          </section>
           <section className="notes">
             <label>
               Remark / abnormal handling
