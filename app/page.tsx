@@ -36,46 +36,79 @@ const C = (
   id: string,
   area: string,
   name: string,
-  standard = "正常",
-  options = ["正常", "異常"],
+  standard = "Normal",
+  options = ["Normal", "Abnormal"],
 ): Item => ({ id, area, name, standard, kind: "choice", options });
 const N = (
   id: string,
   area: string,
   name: string,
   standard: string,
-  hint = "輸入現場／螢幕讀值",
+  hint = "Enter the displayed value",
 ): Item => ({ id, area, name, standard, hint });
 const common: Item[] = [
   N(
     "room_th",
-    "加速器室與 Pit",
-    "加速器室溫度／濕度",
-    "22–26 °C / <60%RH",
-    "例：25.5 °C / 40 %",
+    "Accelerator room & pit",
+    "Accelerator room temperature/Humidity",
+    "22-26°C / < 60%",
+    "e.g. 25.5 °C / 40 %",
   ),
-  C("room_ac", "加速器室與 Pit", "加速器室空調狀態", "ON", ["ON", "OFF"]),
+  C(
+    "room_ac",
+    "Accelerator room & pit",
+    "Accelerator room air condition",
+    "ON",
+    ["ON", "OFF"],
+  ),
   N(
     "bt_th",
-    "加速器室與 Pit",
-    "BT 環境溫度／濕度",
-    "22–26 °C / <60%RH",
-    "例：23 °C / 47 %",
+    "Accelerator room & pit",
+    "BT ambient temperature/Humidity",
+    "22-26°C / < 60%",
+    "e.g. 23 °C / 47 %",
   ),
-  C("bt_ac", "加速器室與 Pit", "BT 區空調狀態", "ON", ["ON", "OFF"]),
-  C("water_leak", "加速器室與 Pit", "冷卻水歧管、接頭及地面漏水巡視", "無漏水"),
-  C("gas_leak", "加速器室與 Pit", "漏氣、異味或異常結霜巡視", "無異常"),
-  C("noise", "加速器室與 Pit", "異音及異常震動巡視", "無異常"),
+  C("bt_ac", "Accelerator room & pit", "BT air condition", "ON", ["ON", "OFF"]),
+  C(
+    "water_leak",
+    "Accelerator room & pit",
+    "Water leakage Check",
+    "No leakage",
+    ["No leakage", "Leakage"],
+  ),
+  C(
+    "gas_leak",
+    "Accelerator room & pit",
+    "Gas leakage, unusual odor or frosting",
+    "No abnormality",
+    ["No abnormality", "Abnormal"],
+  ),
+  C(
+    "noise",
+    "Accelerator room & pit",
+    "Abnormal noise or vibration",
+    "No abnormality",
+    ["No abnormality", "Abnormal"],
+  ),
   N(
     "power_th",
-    "電源供應室",
-    "電源室溫度／濕度",
-    "22–26 °C / <60%RH",
-    "例：24.9 °C / 52 %",
+    "Power supply room",
+    "Power supply room temperature/humidity",
+    "22-26°C / < 60%",
+    "e.g. 24.9 °C / 52 %",
   ),
-  C("power_ac", "電源供應室", "電源室空調狀態", "ON", ["ON", "OFF"]),
-  C("power_leak", "電源供應室", "漏水巡視", "無漏水"),
-  C("pump_noise", "冷卻水室", "泵浦聲音及震動", "無異音"),
+  C("power_ac", "Power supply room", "Power supply room air condition", "ON", [
+    "ON",
+    "OFF",
+  ]),
+  C("power_leak", "Power supply room", "Water leakage Check", "No leakage", [
+    "No leakage",
+    "Leakage",
+  ]),
+  C("pump_noise", "Cooling water room", "Pumps — Noise", "No abnormal noise", [
+    "No abnormal noise",
+    "Abnormal noise",
+  ]),
 ];
 const startup: Item[] = [
   C("network", "加速器控制室", "PLC 與 PC 網路狀態", "ONLINE", [
@@ -173,6 +206,188 @@ const shutdown: Item[] = [
   C("air_close", "冷卻水室", "乾燥空氣瓶閥門已關閉"),
   C("h2_close", "加速器室與 Pit", "氫氣瓶閥門已關閉"),
 ];
+const startupEnglish: Item[] = [
+  C(
+    "network",
+    "Accelerator Control room",
+    "PLC & PC network status",
+    "ON_LINE",
+    ["ON_LINE", "OFF_LINE"],
+  ),
+  N(
+    "coil",
+    "Accelerator Control room",
+    "Maximum Upper coil temperature",
+    "< 6.7 K",
+    "A / B / C / D",
+  ),
+  N(
+    "lead",
+    "Accelerator Control room",
+    "Maximum power lead temperature",
+    "< 65 K",
+    "P / N",
+  ),
+  N(
+    "vacuum_a",
+    "Accelerator Control room",
+    "Vacuum pressure (before startup) (A)",
+    "<2.0E-4 Pa",
+    "e.g. 1.9E-4",
+  ),
+  N(
+    "vacuum_ba",
+    "Accelerator Control room",
+    "(After pass water) The difference pressure between (B) and (A)",
+    "<0.5E-5 Pa",
+  ),
+  N("sector", "Accelerator Control room", "Sector — Temperature", "< 33 °C"),
+  N(
+    "filament",
+    "Accelerator Control room",
+    "Filament current / operation times",
+    ">90A / <2000mins",
+    "A / Mins",
+  ),
+  N("chimney", "Accelerator Control room", "Operation time (arc ON)", "Mins"),
+  C(
+    "water_ready",
+    "Accelerator Control room",
+    "Cooling water — Water flow rate",
+    "Ready",
+    ["Ready", "Not ready"],
+  ),
+  C(
+    "purity",
+    "Accelerator Control room",
+    "Cooling water — Purity",
+    "No alarm",
+    ["No alarm", "Alarm"],
+  ),
+  N(
+    "cryo_a",
+    "Accelerator Control room",
+    "Cryopump-A — 2nd temperature / 1st temperature",
+    "< 20 / < 85 K",
+  ),
+  N(
+    "cryo_b",
+    "Accelerator Control room",
+    "Cryopump-B — 2nd temperature / 1st temperature",
+    "< 20 / < 85 K",
+  ),
+  N(
+    "cryo_flow",
+    "Accelerator room & pit",
+    "Cryopump — Water flow rate",
+    ">9 L/min",
+  ),
+  N(
+    "cooler_flow",
+    "Accelerator room & pit",
+    "Cryocooler — Water flow rate (Comp A, B, C, D)",
+    ">9 L/min",
+    "A / B / C / D",
+  ),
+  C(
+    "h2_open",
+    "Accelerator room & pit",
+    "Hydrogen gas cylinder valve",
+    "Open the valve",
+    ["Open the valve", "Abnormal"],
+  ),
+  C(
+    "rf_reset",
+    "Accelerator room & pit",
+    "RF amp cabinet",
+    "Turn the breaker OFF and ON",
+    ["Completed", "Abnormal"],
+  ),
+  C(
+    "polarity",
+    "Accelerator room & pit",
+    "Exchange the polarity of filament current",
+    "Exchange the cable",
+    ["Straight", "Cross", "Abnormal"],
+  ),
+  C(
+    "door",
+    "Accelerator room & pit",
+    "No one remains in accelerator room and close the shielding door",
+    "No one",
+    ["No one & close the door", "Abnormal"],
+  ),
+  C(
+    "air_open",
+    "Cooling water room",
+    "Dry air gas cylinder valve",
+    "Open the valve",
+    ["Open the valve", "Abnormal"],
+  ),
+  C("switch", "Power supply room", "Power-receiving switch", "ON", [
+    "ON",
+    "OFF",
+  ]),
+  C("cable", "Power supply room", "Cable", "No damage", [
+    "No damage",
+    "Damage",
+  ]),
+];
+const shutdownEnglish: Item[] = [
+  C(
+    "beam_record",
+    "Accelerator Control room",
+    "Integrated beam use Ion chamber",
+    "Record",
+    ["Record", "Abnormal"],
+  ),
+  N(
+    "vacuum_gas",
+    "Accelerator Control room",
+    "Vacuum pressure with gas",
+    "< 2.0E-3 Pa",
+  ),
+  N(
+    "coil_stop",
+    "Accelerator Control room",
+    "Maximum Upper coil temperature",
+    "< 6.7 K",
+    "A / B / C / D",
+  ),
+  N(
+    "lead_stop",
+    "Accelerator Control room",
+    "Maximum power lead temperature",
+    "< 65 K",
+    "P / N",
+  ),
+  N(
+    "cryo_a_stop",
+    "Accelerator Control room",
+    "Cryopump-A — 2nd temperature / 1st temperature",
+    "< 20 / < 85 K",
+  ),
+  N(
+    "cryo_b_stop",
+    "Accelerator Control room",
+    "Cryopump-B — 2nd temperature / 1st temperature",
+    "< 20 / < 85 K",
+  ),
+  C(
+    "air_close",
+    "Cooling water room",
+    "Dry air gas cylinder",
+    "Close the valve",
+    ["Close the valve", "Abnormal"],
+  ),
+  C(
+    "h2_close",
+    "Accelerator room & pit",
+    "Hydrogen gas cylinder",
+    "Close the valve",
+    ["Close the valve", "Abnormal"],
+  ),
+];
 
 function Signature({
   label,
@@ -235,17 +450,17 @@ function Signature({
         onPointerUp={up}
       />
       <button type="button" onClick={clear}>
-        清除簽名
+        Clear signature
       </button>
-      {value && <span>✓ 已簽名</span>}
+      {value && <span>✓ Signed</span>}
     </label>
   );
 }
 
 function paperMeta(x: Item) {
-  const control = x.area === "加速器控制室",
-    cool = x.area === "冷卻水室",
-    power = x.area === "電源供應室";
+  const control = x.area === "Accelerator Control room",
+    cool = x.area === "Cooling water room",
+    power = x.area === "Power supply room";
   let device = x.name.split(" ")[0],
     sub = control
       ? "Beam Scheduler"
@@ -261,10 +476,14 @@ function paperMeta(x: Item) {
         ? "Cryopump-B"
         : "Cryopump";
   else if (x.name.includes("Cryocooler")) device = "Cryocooler";
-  else if (x.name.includes("真空")) device = "Cyclotron vacuum chamber";
-  else if (x.name.includes("空調") || x.name.includes("溫度／濕度"))
+  else if (x.name.includes("Vacuum")) device = "Cyclotron vacuum chamber";
+  else if (
+    x.name.includes("air condition") ||
+    x.name.includes("temperature/Humidity") ||
+    x.name.includes("temperature/humidity")
+  )
     device = "Building";
-  else if (x.name.includes("漏水")) device = "Cooling water manifold";
+  else if (x.name.includes("Water leakage")) device = "Cooling water manifold";
   return {
     place: x.area,
     sub,
@@ -289,28 +508,28 @@ export default function Home() {
   const [meta, setMeta] = useState({
     date: new Date().toISOString().slice(0, 10),
     time: new Date().toTimeString().slice(0, 5),
-    shift: "日班",
-    workMode: "雙人作業",
+    shift: "Day shift",
+    workMode: "Two operators",
     singleReason: "",
     operator1: "",
     operator2: "",
     signature1: "",
     signature2: "",
-    supervisor: "",
-    supervisorSignature: "",
-    supervisorApproval: "待核可",
     remarks: "",
   });
   const [ocr, setOcr] = useState("");
   const abnormalValues = new Set([
-    "異常",
-    "OFFLINE",
+    "Abnormal",
+    "OFF_LINE",
     "Not ready",
     "Alarm",
     "OFF",
   ]);
   const items = useMemo(
-      () => [...(mode === "startup" ? startup : shutdown), ...common],
+      () => [
+        ...(mode === "startup" ? startupEnglish : shutdownEnglish),
+        ...common,
+      ],
       [mode],
     ),
     done = items.filter((x) => v[x.id]?.trim()).length,
@@ -329,22 +548,21 @@ export default function Home() {
   };
   async function save(e: FormEvent, final: boolean) {
     e.preventDefault();
-    const single = meta.workMode === "單人例外作業";
+    const single = meta.workMode === "Single-operator exception";
     if (!meta.operator1.trim() || (!single && !meta.operator2.trim()))
-      return alert(single ? "請填寫操作人員姓名" : "請填寫兩位操作人員姓名");
+      return alert(
+        single ? "Enter the operator name." : "Enter both operator names.",
+      );
     if (single && !meta.singleReason.trim())
-      return alert("單人例外作業必須填寫原因");
+      return alert("A reason is required for a single-operator exception.");
     if (final && (!meta.signature1 || (!single && !meta.signature2)))
       return alert(
-        single ? "操作人員簽名後才能送出" : "兩位操作人員都簽名後才能送出",
+        single
+          ? "The operator must sign before submission."
+          : "Both operators must sign before submission.",
       );
-    if (final && done < items.length) return alert("還有必填項目未完成");
-    const approved =
-      meta.supervisorApproval === "已核可" &&
-      !!meta.supervisor &&
-      !!meta.supervisorSignature;
-    if (final && single && !approved)
-      return alert("單人例外作業必須由主管核可並簽名後才能完成");
+    if (final && done < items.length)
+      return alert("Complete all required checks before submission.");
     const r = await fetch("/api/inspections", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -354,14 +572,10 @@ export default function Home() {
         operator: single
           ? meta.operator1
           : `${meta.operator1} / ${meta.operator2}`,
-        supervisor: meta.supervisor,
+        supervisor: "",
         remarks: meta.remarks,
         mode,
-        status: final
-          ? approved
-            ? "completed"
-            : "awaiting_supervisor"
-          : "draft",
+        status: final ? "completed" : "draft",
         responses: {
           ...v,
           _inspection_time: final
@@ -373,22 +587,20 @@ export default function Home() {
           _operator2: single ? "" : meta.operator2,
           _signature1: meta.signature1,
           _signature2: single ? "" : meta.signature2,
-          _supervisor_signature: meta.supervisorSignature,
-          _supervisor_approval: meta.supervisorApproval,
         },
         abnormalCount: bad,
         completedCount: done,
         totalCount: items.length,
       }),
     });
-    if (!r.ok) return alert("儲存失敗");
+    if (!r.ok) return alert("Unable to save the record.");
     await load();
     setScreen("list");
   }
   async function recognize(e: ChangeEvent<HTMLInputElement>, id: string) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setOcr("辨識中，首次使用約需數十秒…");
+    setOcr("Recognizing… The first run may take several seconds.");
     try {
       const { recognize } = await import("tesseract.js");
       const result = await recognize(file, "eng", {
@@ -404,54 +616,55 @@ export default function Home() {
             ? `${nums[0]} °C / ${nums[1]} %`
             : result.data.text.trim(),
       }));
-      setOcr("辨識完成，請人工核對數值");
+      setOcr("Recognition complete. Verify the values manually.");
     } catch {
-      setOcr("辨識失敗，請重新拍攝或手動輸入");
+      setOcr(
+        "Recognition failed. Retake the photo or enter the values manually.",
+      );
     }
   }
   function exportExcel() {
     const head = [
-        "紀錄編號",
-        "日期",
-        "時間",
-        "班別",
-        "類型",
-        "作業模式",
-        "單人例外原因",
-        "操作員1",
-        "操作員2",
-        "主管",
-        "主管核可",
-        "區域",
-        "檢查項目",
-        "標準值",
-        "結果",
-        "異常",
-        "備註",
-        "建立時間",
+        "Record ID",
+        "Date",
+        "Time",
+        "Shift",
+        "Type",
+        "Work mode",
+        "Single-operator reason",
+        "Operator 1",
+        "Operator 2",
+        "Place",
+        "Check items",
+        "Standard value",
+        "Check",
+        "Abnormal",
+        "Remark",
+        "Created at",
       ],
       lines = [head];
     for (const r of rows) {
       const data = JSON.parse(r.responses_json || "{}"),
-        list = [...(r.mode === "startup" ? startup : shutdown), ...common];
+        list = [
+          ...(r.mode === "startup" ? startupEnglish : shutdownEnglish),
+          ...common,
+        ];
       for (const x of list)
         lines.push([
           r.id,
           r.inspection_date,
           data._inspection_time || "",
           r.shift,
-          r.mode === "startup" ? "開機" : "關機",
-          data._work_mode || "雙人作業",
+          r.mode === "startup" ? "Startup" : "Shutdown",
+          data._work_mode || "Two operators",
           data._single_reason || "",
           data._operator1 || r.operator_name,
           data._operator2 || "",
-          r.supervisor_name,
-          data._supervisor_approval || "",
           x.area,
           x.name,
           x.standard,
           data[x.id] || "",
-          abnormalValues.has(data[x.id]) ? "是" : "否",
+          abnormalValues.has(data[x.id]) ? "Yes" : "No",
           r.remarks,
           r.created_at,
         ]);
@@ -470,7 +683,7 @@ export default function Home() {
       ),
       a = document.createElement("a");
     a.href = u;
-    a.download = `加速器巡檢分析_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `Accelerator_daily_inspection_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(u);
   }
@@ -484,14 +697,14 @@ export default function Home() {
         <div className="brand">
           <b>A</b>
           <span>
-            <strong>加速器每日巡檢</strong>
-            <small>數位紀錄系統</small>
+            <strong>Accelerator Daily Inspection</strong>
+            <small>Digital Record System</small>
           </span>
         </div>
         <nav>
-          <button onClick={() => setScreen("list")}>紀錄總覽</button>
-          <button onClick={() => begin("startup")}>新增開機</button>
-          <button onClick={() => begin("shutdown")}>新增關機</button>
+          <button onClick={() => setScreen("list")}>Records</button>
+          <button onClick={() => begin("startup")}>New Startup</button>
+          <button onClick={() => begin("shutdown")}>New Shutdown</button>
         </nav>
       </header>
       {screen === "list" && (
@@ -499,47 +712,51 @@ export default function Home() {
           <section className="hero">
             <div>
               <em>DAILY OPERATIONS</em>
-              <h1>每日巡檢，一目了然</h1>
-              <p>雙人簽名、主管核可、異常追蹤與參數分析。</p>
+              <h1>Daily inspection at a glance</h1>
+              <p>
+                Operator signatures, exception tracking and parameter analysis.
+              </p>
             </div>
             <div>
-              <button onClick={exportExcel}>匯出 Excel 分析檔</button>
+              <button onClick={exportExcel}>Export for Excel</button>
               <button className="primary" onClick={() => begin("startup")}>
-                ＋ 開機巡檢
+                ＋ Startup Inspection
               </button>
-              <button onClick={() => begin("shutdown")}>＋ 關機巡檢</button>
+              <button onClick={() => begin("shutdown")}>
+                ＋ Shutdown Inspection
+              </button>
             </div>
           </section>
           <section className="cards">
             <article>
-              <small>紀錄總數</small>
+              <small>Total records</small>
               <b>{rows.length}</b>
             </article>
             <article>
-              <small>待完成</small>
+              <small>Draft records</small>
               <b>{rows.filter((x) => x.status !== "completed").length}</b>
             </article>
             <article>
-              <small>異常項目</small>
+              <small>Abnormal items</small>
               <b>{rows.reduce((a, x) => a + x.abnormal_count, 0)}</b>
             </article>
           </section>
           <section className="panel">
             <div className="panelTitle">
-              <h2>巡檢紀錄</h2>
-              <button onClick={load}>重新整理</button>
+              <h2>Inspection records</h2>
+              <button onClick={load}>Refresh</button>
             </div>
             <div className="scroll">
               <table>
                 <thead>
                   <tr>
-                    <th>日期</th>
-                    <th>班別</th>
-                    <th>類型</th>
-                    <th>兩位操作員</th>
-                    <th>完成度</th>
-                    <th>異常</th>
-                    <th>狀態</th>
+                    <th>Date</th>
+                    <th>Shift</th>
+                    <th>Type</th>
+                    <th>Operator(s)</th>
+                    <th>Progress</th>
+                    <th>Abnormal</th>
+                    <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -555,7 +772,7 @@ export default function Home() {
                         <td>{r.inspection_date}</td>
                         <td>{r.shift}</td>
                         <td>
-                          <i>{r.mode === "startup" ? "開機" : "關機"}</i>
+                          <i>{r.mode === "startup" ? "Startup" : "Shutdown"}</i>
                         </td>
                         <td>{r.operator_name}</td>
                         <td>
@@ -564,11 +781,7 @@ export default function Home() {
                         <td className="danger">{r.abnormal_count || "—"}</td>
                         <td>
                           <i className={r.status}>
-                            {r.status === "completed"
-                              ? "主管已核可"
-                              : r.status === "awaiting_supervisor"
-                                ? "待主管核可"
-                                : "草稿"}
+                            {r.status === "completed" ? "Completed" : "Draft"}
                           </i>
                         </td>
                       </tr>
@@ -576,7 +789,7 @@ export default function Home() {
                   ) : (
                     <tr>
                       <td colSpan={7} className="empty">
-                        尚無紀錄，請建立第一筆巡檢。
+                        No records yet. Create the first inspection.
                       </td>
                     </tr>
                   )}
@@ -591,22 +804,24 @@ export default function Home() {
           <div className="title">
             <div>
               <button type="button" onClick={() => setScreen("list")}>
-                ← 返回
+                ← Back
               </button>
               <em>{mode.toUpperCase()}</em>
-              <h1>每日{mode === "startup" ? "開機" : "關機"}巡檢</h1>
+              <h1>
+                Daily {mode === "startup" ? "Startup" : "Shutdown"} Inspection
+              </h1>
             </div>
             <div className="count">
               <b>
                 {done}/{items.length}
               </b>
-              <small>已填寫</small>
+              <small>Completed</small>
             </div>
           </div>
           <section className="modePanel">
-            <strong>本次作業模式</strong>
+            <strong>Work mode</strong>
             <div className="buttons">
-              {["雙人作業", "單人例外作業"].map((option) => (
+              {["Two operators", "Single-operator exception"].map((option) => (
                 <button
                   type="button"
                   key={option}
@@ -616,9 +831,13 @@ export default function Home() {
                       ...meta,
                       workMode: option,
                       operator2:
-                        option === "單人例外作業" ? "" : meta.operator2,
+                        option === "Single-operator exception"
+                          ? ""
+                          : meta.operator2,
                       signature2:
-                        option === "單人例外作業" ? "" : meta.signature2,
+                        option === "Single-operator exception"
+                          ? ""
+                          : meta.signature2,
                     })
                   }
                 >
@@ -626,22 +845,22 @@ export default function Home() {
                 </button>
               ))}
             </div>
-            {meta.workMode === "單人例外作業" && (
+            {meta.workMode === "Single-operator exception" && (
               <label>
-                單人作業原因 *
+                Reason for single-operator exception *
                 <textarea
                   value={meta.singleReason}
                   onChange={(e) =>
                     setMeta({ ...meta, singleReason: e.target.value })
                   }
-                  placeholder="例如：夜間值班、臨時人力不足；主管核可與簽名為必填"
+                  placeholder="e.g. night shift or temporary staffing shortage"
                 />
               </label>
             )}
           </section>
           <section className="meta">
             <label>
-              日期
+              Date
               <input
                 type="date"
                 value={meta.date}
@@ -649,22 +868,22 @@ export default function Home() {
               />
             </label>
             <label>
-              完成時間（送出時自動更新）
+              Completion time (recorded automatically on submission)
               <input type="time" value={meta.time} readOnly />
             </label>
             <label>
-              班別
+              Shift
               <select
                 value={meta.shift}
                 onChange={(e) => setMeta({ ...meta, shift: e.target.value })}
               >
-                <option>日班</option>
-                <option>小夜班</option>
-                <option>大夜班</option>
+                <option>Day shift</option>
+                <option>Evening shift</option>
+                <option>Night shift</option>
               </select>
             </label>
             <label>
-              操作員 1 *
+              Operator 1 *
               <input
                 value={meta.operator1}
                 onChange={(e) =>
@@ -672,9 +891,9 @@ export default function Home() {
                 }
               />
             </label>
-            {meta.workMode === "雙人作業" && (
+            {meta.workMode === "Two operators" && (
               <label>
-                操作員 2 *
+                Operator 2 *
                 <input
                   value={meta.operator2}
                   onChange={(e) =>
@@ -689,16 +908,16 @@ export default function Home() {
               <h2>
                 <span>{n + 1}</span>
                 {area}
-                <small>{xs.length} 項</small>
+                <small>{xs.length} items</small>
               </h2>
               {xs.map((x) => (
                 <div className="check" key={x.id}>
                   <div>
                     <strong>{x.name}</strong>
-                    <small>標準：{x.standard}</small>
+                    <small>Standard: {x.standard}</small>
                     {(x.id === "room_th" || x.id === "power_th") && (
                       <label className="ocr">
-                        拍攝／選擇顯示器照片
+                        Take/select display photo
                         <input
                           type="file"
                           accept="image/*"
@@ -731,7 +950,7 @@ export default function Home() {
                     <input
                       value={v[x.id] || ""}
                       onChange={(e) => setV({ ...v, [x.id]: e.target.value })}
-                      placeholder={x.hint || "輸入現場／螢幕讀值"}
+                      placeholder={x.hint || "Enter the displayed value"}
                     />
                   )}
                 </div>
@@ -741,50 +960,21 @@ export default function Home() {
           {ocr && <p className="ocrStatus">{ocr}</p>}
           <section className="signatures">
             <Signature
-              label="操作員 1 簽名"
+              label="Operator 1 signature"
               value={meta.signature1}
               onChange={(x) => setMeta({ ...meta, signature1: x })}
             />
-            {meta.workMode === "雙人作業" && (
+            {meta.workMode === "Two operators" && (
               <Signature
-                label="操作員 2 簽名"
+                label="Operator 2 signature"
                 value={meta.signature2}
                 onChange={(x) => setMeta({ ...meta, signature2: x })}
               />
             )}
-            <div className="approval">
-              <label>
-                主管姓名
-                <input
-                  value={meta.supervisor}
-                  onChange={(e) =>
-                    setMeta({ ...meta, supervisor: e.target.value })
-                  }
-                />
-              </label>
-              <label>
-                主管核可
-                <select
-                  value={meta.supervisorApproval}
-                  onChange={(e) =>
-                    setMeta({ ...meta, supervisorApproval: e.target.value })
-                  }
-                >
-                  <option>待核可</option>
-                  <option>已核可</option>
-                  <option>退回修正</option>
-                </select>
-              </label>
-              <Signature
-                label="主管簽名"
-                value={meta.supervisorSignature}
-                onChange={(x) => setMeta({ ...meta, supervisorSignature: x })}
-              />
-            </div>
           </section>
           <section className="notes">
             <label>
-              備註與異常處置
+              Remark / abnormal handling
               <textarea
                 value={meta.remarks}
                 onChange={(e) => setMeta({ ...meta, remarks: e.target.value })}
@@ -794,16 +984,16 @@ export default function Home() {
           <div className="actions">
             <span className={bad ? "danger" : ""}>
               {bad
-                ? `⚠ ${bad} 項異常，請填寫處置說明`
-                : "完成時會自動記錄時間；兩位操作員皆須簽名"}
+                ? `⚠ ${bad} abnormal item(s). Enter the handling details.`
+                : "Completion time is recorded automatically. Required operator signature(s) must be present."}
             </span>
-            <button type="submit">儲存草稿</button>
+            <button type="submit">Save draft</button>
             <button
               type="button"
               className="primary"
               onClick={(e) => save(e as unknown as FormEvent, true)}
             >
-              雙人簽名後送出
+              Submit completed inspection
             </button>
           </div>
         </form>
@@ -811,9 +1001,9 @@ export default function Home() {
       {screen === "detail" && chosen && (
         <div className="page">
           <div className="printbar">
-            <button onClick={() => setScreen("list")}>← 返回</button>
+            <button onClick={() => setScreen("list")}>← Back</button>
             <button className="primary" onClick={() => print()}>
-              列印／另存 PDF
+              Print / Save as PDF
             </button>
           </div>
           <article className="report paperReport">
@@ -823,7 +1013,9 @@ export default function Home() {
                 <>
                   <div className="paperTop">
                     <b>{chosen.mode === "startup" ? "Startup" : "Shutdown"}</b>
-                    <span>Rev.03</span>
+                    <span>
+                      {chosen.mode === "startup" ? "Rev.02" : "Rev.01"}
+                    </span>
                   </div>
                   <table className="paperTable">
                     <thead>
@@ -840,7 +1032,9 @@ export default function Home() {
                     </thead>
                     <tbody>
                       {[
-                        ...(chosen.mode === "startup" ? startup : shutdown),
+                        ...(chosen.mode === "startup"
+                          ? startupEnglish
+                          : shutdownEnglish),
                         ...common,
                       ].map((x) => {
                         const z = d[x.id] || "—",
@@ -870,48 +1064,38 @@ export default function Home() {
                       Daily {chosen.mode === "startup" ? "Startup" : "Shutdown"}{" "}
                       Sheet
                     </b>
-                    <span>
-                      Supervisor: {chosen.supervisor_name || "________"}
-                    </span>
+                    <span>Supervisor: ______________________________</span>
                     <span>Date: {chosen.inspection_date}</span>
                     <span>Time: {d._inspection_time || "—"}</span>
                     <span>Operator 1: {d._operator1 || "—"}</span>
                     <span>
-                      Mode: {d._work_mode || "雙人作業"}
+                      Mode: {d._work_mode || "Two operators"}
                       {d._single_reason ? `（${d._single_reason}）` : ""}
                     </span>
-                    {d._work_mode !== "單人例外作業" && (
+                    {d._work_mode !== "Single-operator exception" && (
                       <span>Operator 2: {d._operator2 || "—"}</span>
                     )}
                   </div>
                   <div className="signaturePrint">
                     {d._signature1 && (
                       <figure>
-                        <img src={d._signature1} alt="操作員1簽名" />
-                        <figcaption>操作員1簽名</figcaption>
+                        <img src={d._signature1} alt="Operator 1 signature" />
+                        <figcaption>Operator 1</figcaption>
                       </figure>
                     )}
                     {d._signature2 && (
                       <figure>
-                        <img src={d._signature2} alt="操作員2簽名" />
-                        <figcaption>操作員2簽名</figcaption>
-                      </figure>
-                    )}
-                    {d._supervisor_signature && (
-                      <figure>
-                        <img src={d._supervisor_signature} alt="主管簽名" />
-                        <figcaption>
-                          主管簽名 · {d._supervisor_approval}
-                        </figcaption>
+                        <img src={d._signature2} alt="Operator 2 signature" />
+                        <figcaption>Operator 2</figcaption>
                       </figure>
                     )}
                   </div>
                   <div className="reportNotes">
-                    <small>Remark / 異常處置</small>
-                    <p>{chosen.remarks || "無"}</p>
+                    <small>Remark / abnormal handling</small>
+                    <p>{chosen.remarks || "None"}</p>
                   </div>
                   <footer>
-                    紀錄編號：{chosen.id}　建立時間：
+                    Record ID: {chosen.id}　Created at:
                     {new Date(chosen.created_at).toLocaleString("zh-TW")}
                   </footer>
                 </>
