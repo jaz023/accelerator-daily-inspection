@@ -1,12 +1,3 @@
-.ocr {
-  display: inline-block;
-  margin-top: 8px;
-  padding: 6px 9px;
-  border: 1px solid #b9cbc1;
-  border-radius: 7px;
-  color: var(--g);
-  cursor: pointer;
-}
 .modePanel {
   background: #fff;
   border: 1px solid var(--l);
@@ -29,14 +20,10 @@
   border-left: 4px solid #c95c2d;
   background: #fffaf5;
 }
-.ocr input {
-  display: none;
-}
-.ocrStatus {
-  background: #e7f1ec;
-  color: var(--g);
-  padding: 10px 14px;
-  border-radius: 9px;
+.temperatureHumidity {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
 .signatures {
   display: grid;
@@ -139,6 +126,9 @@ i.awaiting_supervisor {
     display: flex;
     flex-wrap: wrap;
     gap: 7px;
+  }
+  .temperatureHumidity {
+    grid-template-columns: 1fr;
   }
 }
 @media print {

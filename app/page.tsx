@@ -1,19 +1,12 @@
 "use client";
-import {
-  ChangeEvent,
-  FormEvent,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 type Item = {
   id: string;
   area: string;
   name: string;
   standard: string;
-  kind?: "choice";
+  kind?: "choice" | "temperatureHumidity";
   options?: string[];
   hint?: string;
 };
@@ -46,13 +39,18 @@ const N = (
   standard: string,
   hint = "Enter the displayed value",
 ): Item => ({ id, area, name, standard, hint });
+const TH = (id: string, area: string, name: string): Item => ({
+  id,
+  area,
+  name,
+  standard: "22-26°C / < 60%",
+  kind: "temperatureHumidity",
+});
 const common: Item[] = [
-  N(
+  TH(
     "room_th",
     "Accelerator room & pit",
     "Accelerator room temperature/Humidity",
-    "22-26°C / < 60%",
-    "e.g. 25.5 °C / 40 %",
   ),
   C(
     "room_ac",
@@ -61,12 +59,10 @@ const common: Item[] = [
     "ON",
     ["ON", "OFF"],
   ),
-  N(
+  TH(
     "bt_th",
     "Accelerator room & pit",
     "BT ambient temperature/Humidity",
-    "22-26°C / < 60%",
-    "e.g. 23 °C / 47 %",
   ),
   C("bt_ac", "Accelerator room & pit", "BT air condition", "ON", ["ON", "OFF"]),
   C(
@@ -90,12 +86,10 @@ const common: Item[] = [
     "No abnormality",
     ["No abnormality", "Abnormal"],
   ),
-  N(
+  TH(
     "power_th",
     "Power supply room",
     "Power supply room temperature/humidity",
-    "22-26°C / < 60%",
-    "e.g. 24.9 °C / 52 %",
   ),
   C("power_ac", "Power supply room", "Power supply room air condition", "ON", [
     "ON",
@@ -517,7 +511,6 @@ export default function Home() {
     signature2: "",
     remarks: "",
   });
-  const [ocr, setOcr] = useState("");
   const abnormalValues = new Set([
     "Abnormal",
     "OFF_LINE",
@@ -597,31 +590,22 @@ export default function Home() {
     await load();
     setScreen("list");
   }
-  async function recognize(e: ChangeEvent<HTMLInputElement>, id: string) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setOcr("Recognizing… The first run may take several seconds.");
-    try {
-      const { recognize } = await import("tesseract.js");
-      const result = await recognize(file, "eng", {
-        logger: (m) =>
-          m.status &&
-          setOcr(`${m.status} ${Math.round((m.progress || 0) * 100)}%`),
-      });
-      const nums = result.data.text.match(/-?\d+(?:\.\d+)?/g) || [];
-      setV((old) => ({
-        ...old,
-        [id]:
-          nums.length >= 2
-            ? `${nums[0]} °C / ${nums[1]} %`
-            : result.data.text.trim(),
-      }));
-      setOcr("Recognition complete. Verify the values manually.");
-    } catch {
-      setOcr(
-        "Recognition failed. Retake the photo or enter the values manually.",
-      );
-    }
+  const temperatureOptions = Array.from({ length: 41 }, (_, i) =>
+    (15 + i * 0.5).toFixed(1),
+  );
+  const humidityOptions = Array.from({ length: 61 }, (_, i) => String(20 + i));
+  function thPart(value: string, index: number) {
+    return value.match(/\d+(?:\.\d+)?/g)?.[index] || "";
+  }
+  function setTemperatureHumidity(
+    id: string,
+    temperature: string,
+    humidity: string,
+  ) {
+    setV({
+      ...v,
+      [id]: temperature && humidity ? `${temperature} °C / ${humidity} %` : "",
+    });
   }
   function exportExcel() {
     const head = [
@@ -687,6 +671,39 @@ export default function Home() {
     a.click();
     URL.revokeObjectURL(u);
   }
+  function exportPaperExcel(record: Rec) {
+    const data = JSON.parse(record.responses_json || "{}"),
+      list = [
+        ...(record.mode === "startup" ? startupEnglish : shutdownEnglish),
+        ...common,
+      ],
+      esc = (value: unknown) =>
+        String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;"),
+      rowsHtml = list
+        .map((x) => {
+          const m = paperMeta(x);
+          return `<tr><td>${esc(m.place)}</td><td>${esc(m.sub)}</td><td>${esc(m.device)}</td><td>${esc(x.name)}</td><td class="center">${esc(m.unit)}</td><td class="center">${esc(x.standard)}</td><td class="center">${esc(data[x.id] || "")}</td><td>${esc(m.remark)}</td></tr>`;
+        })
+        .join(""),
+      secondOperator =
+        data._work_mode === "Single-operator exception"
+          ? `Single-operator exception: ${esc(data._single_reason || "")}`
+          : `Operator 2: ${esc(data._operator2 || "")}`,
+      html = `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;font-size:10pt}table{border-collapse:collapse;width:100%}th,td{border:1px solid #222;padding:4px;vertical-align:middle}th{font-weight:bold;text-align:center;background:#e7e7e7}.top td{border:0;font-weight:bold;font-size:12pt}.center{text-align:center}.sheet-title{font-weight:bold;margin-top:12px}.sign td{height:28px}</style></head><body><table><tr class="top"><td colspan="7">${record.mode === "startup" ? "Startup" : "Shutdown"}</td><td>${record.mode === "startup" ? "Rev.02" : "Rev.01"}</td></tr><tr><th>Place</th><th>Sub system</th><th>Device</th><th>Check items</th><th>(Unit)</th><th>Standard value</th><th>Check</th><th>Remark</th></tr>${rowsHtml}</table><div class="sheet-title">Daily ${record.mode === "startup" ? "Startup" : "Shutdown"} Sheet</div><table class="sign"><tr><td>Supervisor: ____________________</td><td>Date: ${esc(record.inspection_date)}</td><td>Time: ${esc(data._inspection_time || "")}</td><td>Operator 1: ${esc(data._operator1 || record.operator_name)}</td></tr><tr><td colspan="2">${secondOperator}</td><td colspan="2">Operator signature(s): Recorded electronically</td></tr></table></body></html>`,
+      url = URL.createObjectURL(
+        new Blob(["\uFEFF", html], {
+          type: "application/vnd.ms-excel;charset=utf-8",
+        }),
+      ),
+      anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `Daily_${record.mode === "startup" ? "Startup" : "Shutdown"}_${record.inspection_date}.xls`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
   const groups = items.reduce<Record<string, Item[]>>((a, x) => {
     (a[x.area] ??= []).push(x);
     return a;
@@ -718,7 +735,7 @@ export default function Home() {
               </p>
             </div>
             <div>
-              <button onClick={exportExcel}>Export for Excel</button>
+              <button onClick={exportExcel}>Export analysis CSV</button>
               <button className="primary" onClick={() => begin("startup")}>
                 ＋ Startup Inspection
               </button>
@@ -915,17 +932,6 @@ export default function Home() {
                   <div>
                     <strong>{x.name}</strong>
                     <small>Standard: {x.standard}</small>
-                    {(x.id === "room_th" || x.id === "power_th") && (
-                      <label className="ocr">
-                        Take/select display photo
-                        <input
-                          type="file"
-                          accept="image/*"
-                          capture="environment"
-                          onChange={(e) => recognize(e, x.id)}
-                        />
-                      </label>
-                    )}
                   </div>
                   {x.kind === "choice" ? (
                     <div className="buttons">
@@ -946,6 +952,45 @@ export default function Home() {
                         </button>
                       ))}
                     </div>
+                  ) : x.kind === "temperatureHumidity" ? (
+                    <div className="temperatureHumidity">
+                      <label>
+                        Temperature (°C)
+                        <select
+                          value={thPart(v[x.id] || "", 0)}
+                          onChange={(e) =>
+                            setTemperatureHumidity(
+                              x.id,
+                              e.target.value,
+                              thPart(v[x.id] || "", 1),
+                            )
+                          }
+                        >
+                          <option value="">Select</option>
+                          {temperatureOptions.map((n) => (
+                            <option key={n}>{n}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        Humidity (%RH)
+                        <select
+                          value={thPart(v[x.id] || "", 1)}
+                          onChange={(e) =>
+                            setTemperatureHumidity(
+                              x.id,
+                              thPart(v[x.id] || "", 0),
+                              e.target.value,
+                            )
+                          }
+                        >
+                          <option value="">Select</option>
+                          {humidityOptions.map((n) => (
+                            <option key={n}>{n}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
                   ) : (
                     <input
                       value={v[x.id] || ""}
@@ -957,7 +1002,6 @@ export default function Home() {
               ))}
             </section>
           ))}
-          {ocr && <p className="ocrStatus">{ocr}</p>}
           <section className="signatures">
             <Signature
               label="Operator 1 signature"
@@ -1002,9 +1046,14 @@ export default function Home() {
         <div className="page">
           <div className="printbar">
             <button onClick={() => setScreen("list")}>← Back</button>
-            <button className="primary" onClick={() => print()}>
-              Print / Save as PDF
-            </button>
+            <div>
+              <button onClick={() => exportPaperExcel(chosen)}>
+                Export Excel sheet
+              </button>
+              <button className="primary" onClick={() => print()}>
+                Print / Save as PDF
+              </button>
+            </div>
           </div>
           <article className="report paperReport">
             {(() => {
