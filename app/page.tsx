@@ -493,6 +493,25 @@ function paperMeta(x: Item) {
   };
 }
 
+function paperExportItems(mode: string) {
+  const source = [...startupEnglish, ...shutdownEnglish, ...common];
+  const ids =
+    mode === "startup"
+      ? [
+          "network", "coil", "lead", "vacuum_a", "vacuum_ba", "sector",
+          "filament", "chimney", "water_ready", "purity", "cryo_a", "cryo_b",
+          "cryo_flow", "cooler_flow", "h2_open", "polarity", "room_th", "bt_th",
+          "water_leak", "door", "air_open", "pump_noise", "power_th", "power_leak",
+          "switch", "cable",
+        ]
+      : [
+          "beam_record", "vacuum_gas", "coil_stop", "lead_stop", "cryo_a_stop",
+          "cryo_b_stop", "air_close", "pump_noise", "h2_close", "room_th", "bt_th",
+          "water_leak", "power_th", "power_leak",
+        ];
+  return ids.map((id) => source.find((item) => item.id === id)!).filter(Boolean);
+}
+
 export default function Home() {
   const [screen, setScreen] = useState<"list" | "form" | "detail">("list"),
     [mode, setMode] = useState<"startup" | "shutdown">("startup"),
@@ -673,10 +692,7 @@ export default function Home() {
   }
   function exportPaperExcel(record: Rec) {
     const data = JSON.parse(record.responses_json || "{}"),
-      list = [
-        ...(record.mode === "startup" ? startupEnglish : shutdownEnglish),
-        ...common,
-      ],
+      list = paperExportItems(record.mode),
       esc = (value: unknown) =>
         String(value ?? "")
           .replaceAll("&", "&amp;")
@@ -1084,12 +1100,7 @@ export default function Home() {
                       </tr>
                     </thead>
                     <tbody>
-                      {[
-                        ...(chosen.mode === "startup"
-                          ? startupEnglish
-                          : shutdownEnglish),
-                        ...common,
-                      ].map((x) => {
+                      {paperExportItems(chosen.mode).map((x) => {
                         const z = d[x.id] || "—",
                           m = paperMeta(x);
                         return (
