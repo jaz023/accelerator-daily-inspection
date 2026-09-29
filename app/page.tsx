@@ -1,5 +1,5 @@
 "use client";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type Item = {
   id: string;
@@ -383,74 +383,6 @@ const shutdownEnglish: Item[] = [
   ),
 ];
 
-function Signature({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  const ref = useRef<HTMLCanvasElement>(null),
-    drawing = useRef(false);
-  function point(e: React.PointerEvent<HTMLCanvasElement>) {
-    const c = ref.current!,
-      r = c.getBoundingClientRect();
-    return {
-      x: ((e.clientX - r.left) * c.width) / r.width,
-      y: ((e.clientY - r.top) * c.height) / r.height,
-    };
-  }
-  function down(e: React.PointerEvent<HTMLCanvasElement>) {
-    drawing.current = true;
-    const c = ref.current!,
-      p = point(e),
-      x = c.getContext("2d")!;
-    x.beginPath();
-    x.moveTo(p.x, p.y);
-    c.setPointerCapture(e.pointerId);
-  }
-  function move(e: React.PointerEvent<HTMLCanvasElement>) {
-    if (!drawing.current) return;
-    const c = ref.current!,
-      p = point(e),
-      x = c.getContext("2d")!;
-    x.lineWidth = 2.2;
-    x.lineCap = "round";
-    x.strokeStyle = "#17231f";
-    x.lineTo(p.x, p.y);
-    x.stroke();
-  }
-  function up() {
-    drawing.current = false;
-    onChange(ref.current!.toDataURL("image/png"));
-  }
-  function clear() {
-    const c = ref.current!,
-      x = c.getContext("2d")!;
-    x.clearRect(0, 0, c.width, c.height);
-    onChange("");
-  }
-  return (
-    <label className="signature">
-      {label}
-      <canvas
-        ref={ref}
-        width="500"
-        height="130"
-        onPointerDown={down}
-        onPointerMove={move}
-        onPointerUp={up}
-      />
-      <button type="button" onClick={clear}>
-        Clear signature
-      </button>
-      {value && <span>✓ Signed</span>}
-    </label>
-  );
-}
-
 function paperMeta(x: Item) {
   const control = x.area === "Accelerator Control room",
     cool = x.area === "Cooling water room",
@@ -524,8 +456,6 @@ export default function Home() {
     singleReason: "",
     operator1: "",
     operator2: "",
-    signature1: "",
-    signature2: "",
     remarks: "",
   });
   const abnormalValues = new Set([
@@ -565,12 +495,6 @@ export default function Home() {
       return alert("A reason is required for a single-operator exception.");
     if (historical && !meta.time)
       return alert("Enter the original completion time.");
-    if (final && !historical && (!meta.signature1 || (!single && !meta.signature2)))
-      return alert(
-        single
-          ? "The operator must sign before submission."
-          : "Both operators must sign before submission.",
-      );
     if (final && done < items.length)
       return alert("Complete all required checks before submission.");
     const r = await fetch("/api/inspections", {
@@ -598,8 +522,6 @@ export default function Home() {
           _single_reason: meta.singleReason,
           _operator1: meta.operator1,
           _operator2: single ? "" : meta.operator2,
-          _signature1: meta.signature1,
-          _signature2: single ? "" : meta.signature2,
         },
         measurements: items.map((item) => {
           const paper = paperMeta(item);
@@ -733,7 +655,7 @@ export default function Home() {
         data._work_mode === "Single-operator exception"
           ? `Single-operator exception: ${esc(data._single_reason || "")}`
           : `Operator 2: ${esc(data._operator2 || "")}`,
-      html = `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;font-size:10pt}table{border-collapse:collapse;width:100%}th,td{border:1px solid #222;padding:4px;vertical-align:middle}th{font-weight:bold;text-align:center;background:#e7e7e7}.top td{border:0;font-weight:bold;font-size:12pt}.center{text-align:center}.sheet-title{font-weight:bold;margin-top:12px}.sign td{height:28px}</style></head><body><table><tr class="top"><td colspan="7">${record.mode === "startup" ? "Startup" : "Shutdown"}</td><td>${record.mode === "startup" ? "Rev.02" : "Rev.01"}</td></tr><tr><th>Place</th><th>Sub system</th><th>Device</th><th>Check items</th><th>(Unit)</th><th>Standard value</th><th>Check</th><th>Remark</th></tr>${rowsHtml}</table><div class="sheet-title">Daily ${record.mode === "startup" ? "Startup" : "Shutdown"} Sheet</div><table class="sign"><tr><td>Supervisor: ____________________</td><td>Date: ${esc(record.inspection_date)}</td><td>Time: ${esc(data._inspection_time || "")}</td><td>Operator 1: ${esc(data._operator1 || record.operator_name)}</td></tr><tr><td colspan="2">${secondOperator}</td><td colspan="2">Operator signature(s): Recorded electronically</td></tr></table></body></html>`,
+      html = `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;font-size:10pt}table{border-collapse:collapse;width:100%}th,td{border:1px solid #222;padding:4px;vertical-align:middle}th{font-weight:bold;text-align:center;background:#e7e7e7}.top td{border:0;font-weight:bold;font-size:12pt}.center{text-align:center}.sheet-title{font-weight:bold;margin-top:12px}.sign td{height:28px}</style></head><body><table><tr class="top"><td colspan="7">${record.mode === "startup" ? "Startup" : "Shutdown"}</td><td>${record.mode === "startup" ? "Rev.02" : "Rev.01"}</td></tr><tr><th>Place</th><th>Sub system</th><th>Device</th><th>Check items</th><th>(Unit)</th><th>Standard value</th><th>Check</th><th>Remark</th></tr>${rowsHtml}</table><div class="sheet-title">Daily ${record.mode === "startup" ? "Startup" : "Shutdown"} Sheet</div><table class="sign"><tr><td>Supervisor: ____________________</td><td>Date: ${esc(record.inspection_date)}</td><td>Time: ${esc(data._inspection_time || "")}</td><td>Operator 1: ${esc(data._operator1 || record.operator_name)}</td></tr><tr><td colspan="2">${secondOperator}</td><td colspan="2">Paper record signature: ____________________</td></tr></table></body></html>`,
       url = URL.createObjectURL(
         new Blob(["\uFEFF", html], {
           type: "application/vnd.ms-excel;charset=utf-8",
@@ -771,8 +693,9 @@ export default function Home() {
             <div>
               <em>DAILY OPERATIONS</em>
               <h1>Daily inspection at a glance</h1>
-              <p>
-                Operator signatures, exception tracking and parameter analysis.
+              <p>Operator records, exception tracking and parameter analysis.</p>
+              <p className="modeNote">
+                Electronic records are for reference only. The signed paper sheet is the official record.
               </p>
             </div>
             <div>
@@ -905,7 +828,7 @@ export default function Home() {
             </div>
             {meta.entryType === "Historical" && (
               <p className="modeNote">
-                Enter the original inspection date, completion time and operator name(s). Signatures are optional for historical records.
+                Enter the original inspection date, completion time and operator name(s).
               </p>
             )}
           </section>
@@ -925,10 +848,6 @@ export default function Home() {
                         option === "Single-operator exception"
                           ? ""
                           : meta.operator2,
-                      signature2:
-                        option === "Single-operator exception"
-                          ? ""
-                          : meta.signature2,
                     })
                   }
                 >
@@ -994,11 +913,6 @@ export default function Home() {
                   }
                 />
               </label>
-              <Signature
-                label={`Operator 1 handwritten signature${meta.entryType === "Historical" ? " (optional)" : " *"}`}
-                value={meta.signature1}
-                onChange={(x) => setMeta({ ...meta, signature1: x })}
-              />
             </div>
             {meta.workMode === "Two operators" && (
               <div className="operatorEntry">
@@ -1011,11 +925,6 @@ export default function Home() {
                     }
                   />
                 </label>
-                <Signature
-                  label={`Operator 2 handwritten signature${meta.entryType === "Historical" ? " (optional)" : " *"}`}
-                  value={meta.signature2}
-                  onChange={(x) => setMeta({ ...meta, signature2: x })}
-                />
               </div>
             )}
           </section>
@@ -1116,7 +1025,7 @@ export default function Home() {
                 ? `⚠ ${bad} abnormal item(s). Enter the handling details.`
                 : meta.entryType === "Historical"
                   ? "Historical record: verify the original date, time and operator name(s) before submission."
-                  : "Completion time is recorded automatically. Required operator signature(s) must be present."}
+                  : "Completion time is recorded automatically. The signed paper sheet remains the official record."}
             </span>
             <button type="submit">Save draft</button>
             <button
@@ -1205,20 +1114,6 @@ export default function Home() {
                     </span>
                     {d._work_mode !== "Single-operator exception" && (
                       <span>Operator 2: {d._operator2 || "—"}</span>
-                    )}
-                  </div>
-                  <div className="signaturePrint">
-                    {d._signature1 && (
-                      <figure>
-                        <img src={d._signature1} alt="Operator 1 signature" />
-                        <figcaption>Operator 1</figcaption>
-                      </figure>
-                    )}
-                    {d._signature2 && (
-                      <figure>
-                        <img src={d._signature2} alt="Operator 2 signature" />
-                        <figcaption>Operator 2</figcaption>
-                      </figure>
                     )}
                   </div>
                   <div className="reportNotes">
