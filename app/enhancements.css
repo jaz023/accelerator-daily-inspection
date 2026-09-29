@@ -16,6 +16,12 @@
 .modePanel textarea {
   min-height: 70px;
 }
+.modeNote {
+  margin: 10px 0 0;
+  color: #68736f;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
 .modePanel:has(textarea) {
   border-left: 4px solid #c95c2d;
   background: #fffaf5;

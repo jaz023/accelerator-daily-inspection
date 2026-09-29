@@ -518,6 +518,7 @@ export default function Home() {
   const [meta, setMeta] = useState({
     date: new Date().toISOString().slice(0, 10),
     time: new Date().toTimeString().slice(0, 5),
+    entryType: "Current",
     shift: "Day shift",
     workMode: "Two operators",
     singleReason: "",
@@ -555,13 +556,16 @@ export default function Home() {
   async function save(e: FormEvent, final: boolean) {
     e.preventDefault();
     const single = meta.workMode === "Single-operator exception";
+    const historical = meta.entryType === "Historical";
     if (!meta.operator1.trim() || (!single && !meta.operator2.trim()))
       return alert(
         single ? "Enter the operator name." : "Enter both operator names.",
       );
-    if (single && !meta.singleReason.trim())
+    if (single && !historical && !meta.singleReason.trim())
       return alert("A reason is required for a single-operator exception.");
-    if (final && (!meta.signature1 || (!single && !meta.signature2)))
+    if (historical && !meta.time)
+      return alert("Enter the original completion time.");
+    if (final && !historical && (!meta.signature1 || (!single && !meta.signature2)))
       return alert(
         single
           ? "The operator must sign before submission."
@@ -585,8 +589,11 @@ export default function Home() {
         responses: {
           ...v,
           _inspection_time: final
-            ? new Date().toTimeString().slice(0, 5)
+            ? historical
+              ? meta.time
+              : new Date().toTimeString().slice(0, 5)
             : meta.time,
+          _entry_type: meta.entryType,
           _work_mode: meta.workMode,
           _single_reason: meta.singleReason,
           _operator1: meta.operator1,
@@ -870,6 +877,39 @@ export default function Home() {
             </div>
           </div>
           <section className="modePanel">
+            <strong>Record type</strong>
+            <div className="buttons">
+              {["Current", "Historical"].map((option) => (
+                <button
+                  type="button"
+                  key={option}
+                  className={meta.entryType === option ? "yes" : ""}
+                  onClick={() =>
+                    setMeta({
+                      ...meta,
+                      entryType: option,
+                      date:
+                        option === "Current"
+                          ? new Date().toISOString().slice(0, 10)
+                          : meta.date,
+                      time:
+                        option === "Current"
+                          ? new Date().toTimeString().slice(0, 5)
+                          : meta.time,
+                    })
+                  }
+                >
+                  {option === "Current" ? "Current inspection" : "Historical data entry"}
+                </button>
+              ))}
+            </div>
+            {meta.entryType === "Historical" && (
+              <p className="modeNote">
+                Enter the original inspection date, completion time and operator name(s). Signatures are optional for historical records.
+              </p>
+            )}
+          </section>
+          <section className="modePanel">
             <strong>Work mode</strong>
             <div className="buttons">
               {["Two operators", "Single-operator exception"].map((option) => (
@@ -896,7 +936,7 @@ export default function Home() {
                 </button>
               ))}
             </div>
-            {meta.workMode === "Single-operator exception" && (
+            {meta.workMode === "Single-operator exception" && meta.entryType !== "Historical" && (
               <label>
                 Reason for single-operator exception *
                 <textarea
@@ -919,8 +959,15 @@ export default function Home() {
               />
             </label>
             <label>
-              Completion time (recorded automatically on submission)
-              <input type="time" value={meta.time} readOnly />
+              {meta.entryType === "Historical"
+                ? "Original completion time *"
+                : "Completion time (recorded automatically on submission)"}
+              <input
+                type="time"
+                value={meta.time}
+                readOnly={meta.entryType !== "Historical"}
+                onChange={(e) => setMeta({ ...meta, time: e.target.value })}
+              />
             </label>
             <label>
               Shift
@@ -948,7 +995,7 @@ export default function Home() {
                 />
               </label>
               <Signature
-                label="Operator 1 handwritten signature *"
+                label={`Operator 1 handwritten signature${meta.entryType === "Historical" ? " (optional)" : " *"}`}
                 value={meta.signature1}
                 onChange={(x) => setMeta({ ...meta, signature1: x })}
               />
@@ -965,7 +1012,7 @@ export default function Home() {
                   />
                 </label>
                 <Signature
-                  label="Operator 2 handwritten signature *"
+                  label={`Operator 2 handwritten signature${meta.entryType === "Historical" ? " (optional)" : " *"}`}
                   value={meta.signature2}
                   onChange={(x) => setMeta({ ...meta, signature2: x })}
                 />
@@ -1067,7 +1114,9 @@ export default function Home() {
             <span className={bad ? "danger" : ""}>
               {bad
                 ? `⚠ ${bad} abnormal item(s). Enter the handling details.`
-                : "Completion time is recorded automatically. Required operator signature(s) must be present."}
+                : meta.entryType === "Historical"
+                  ? "Historical record: verify the original date, time and operator name(s) before submission."
+                  : "Completion time is recorded automatically. Required operator signature(s) must be present."}
             </span>
             <button type="submit">Save draft</button>
             <button
