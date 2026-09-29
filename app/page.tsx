@@ -498,16 +498,13 @@ function paperExportItems(mode: string) {
   const ids =
     mode === "startup"
       ? [
-          "network", "coil", "lead", "vacuum_a", "vacuum_ba", "sector",
-          "filament", "chimney", "water_ready", "purity", "cryo_a", "cryo_b",
-          "cryo_flow", "cooler_flow", "h2_open", "polarity", "room_th", "bt_th",
-          "water_leak", "door", "air_open", "pump_noise", "power_th", "power_leak",
-          "switch", "cable",
+          "coil", "lead", "vacuum_a", "vacuum_ba", "sector", "filament",
+          "chimney", "cryo_a", "cryo_b", "cryo_flow", "cooler_flow",
+          "room_th", "bt_th", "power_th",
         ]
       : [
-          "beam_record", "vacuum_gas", "coil_stop", "lead_stop", "cryo_a_stop",
-          "cryo_b_stop", "air_close", "pump_noise", "h2_close", "room_th", "bt_th",
-          "water_leak", "power_th", "power_leak",
+          "vacuum_gas", "coil_stop", "lead_stop", "cryo_a_stop", "cryo_b_stop",
+          "room_th", "bt_th", "power_th",
         ];
   return ids.map((id) => source.find((item) => item.id === id)!).filter(Boolean);
 }
@@ -538,10 +535,7 @@ export default function Home() {
     "OFF",
   ]);
   const items = useMemo(
-      () => [
-        ...(mode === "startup" ? startupEnglish : shutdownEnglish),
-        ...common,
-      ],
+      () => paperExportItems(mode),
       [mode],
     ),
     done = items.filter((x) => v[x.id]?.trim()).length,
@@ -648,10 +642,7 @@ export default function Home() {
       lines = [head];
     for (const r of rows) {
       const data = JSON.parse(r.responses_json || "{}"),
-        list = [
-          ...(r.mode === "startup" ? startupEnglish : shutdownEnglish),
-          ...common,
-        ];
+        list = paperExportItems(r.mode);
       for (const x of list)
         lines.push([
           r.id,
