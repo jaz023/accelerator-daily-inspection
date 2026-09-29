@@ -594,12 +594,39 @@ export default function Home() {
           _signature1: meta.signature1,
           _signature2: single ? "" : meta.signature2,
         },
+        measurements: items.map((item) => {
+          const paper = paperMeta(item);
+          const recordedValue = v[item.id] || "";
+          const numericValues = recordedValue.match(
+            /-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g,
+          ) || [];
+          return {
+            place: paper.place,
+            device: paper.device,
+            parameterId: item.id,
+            checkItem: item.name,
+            unit: paper.unit,
+            standardValue: item.standard,
+            recordedValue,
+            value1: numericValues[0] || "",
+            value2: numericValues[1] || "",
+            value3: numericValues[2] || "",
+            value4: numericValues[3] || "",
+            status: abnormalValues.has(recordedValue) ? "Abnormal" : "Normal",
+            remark: paper.remark,
+          };
+        }),
         abnormalCount: bad,
         completedCount: done,
         totalCount: items.length,
       }),
     });
+    const result = (await r.json()) as { sheetSync?: string };
     if (!r.ok) return alert("Unable to save the record.");
+    if (final && result.sheetSync === "failed")
+      alert(
+        "The inspection was saved, but Google Sheets sync failed. Please contact the system administrator.",
+      );
     await load();
     setScreen("list");
   }
