@@ -3,6 +3,27 @@
   color: #19342d;
   background: #eef3f1;
 }
+dialog {
+  max-width: 780px;
+  width: calc(100% - 64px);
+  max-height: 80vh;
+  overflow: auto;
+  border: 2px solid #bd6927;
+  border-radius: 12px;
+  color: #19342d;
+}
+dialog::backdrop {
+  background: #19342d99;
+}
+#standardWarningList {
+  color: #923e16;
+  line-height: 1.6;
+}
+.review-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
 body {
   margin: 0;
 }

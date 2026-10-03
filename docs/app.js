@@ -121,6 +121,68 @@ function measurementFor(item, recordedValue, remark = "") {
     remark,
   };
 }
+// Standards mirror the existing form; abnormal readings remain recordable.
+function standardWarnings(measurement) {
+  const name = measurement.checkItem;
+  const warnings = [];
+  const check = (slot, label, valid, standard) => {
+    const number = Number(measurement["value" + slot]);
+    if (!valid(number))
+      warnings.push(`${name} — ${label}: ${number} (standard: ${standard})`);
+  };
+  const upper = (slot, label, limit, unit) =>
+    check(
+      slot,
+      label,
+      (n) => n >= 0 && n < limit,
+      `0 ≤ value < ${limit} ${unit}`,
+    );
+  if (/humidity/i.test(name)) {
+    check(2, "Temperature", (n) => n >= 22 && n <= 26, "22–26 °C");
+    upper(1, "Humidity", 60, "%");
+  } else if (/upper coil/i.test(name)) {
+    [3, 4, 5, 6].forEach((slot, i) => upper(slot, `Coil ${i + 1}`, 6.7, "K"));
+  } else if (/power lead/i.test(name)) {
+    [7, 8].forEach((slot, i) => upper(slot, `Lead ${i + 1}`, 65, "K"));
+  } else if (/Cryopump-[AB]/i.test(name)) {
+    upper(9, "2nd Temperature", 20, "K");
+    upper(10, "1st Temperature", 85, "K");
+  } else if (/Filament/i.test(name)) {
+    check(11, "Current", (n) => n > 90, ">90 A");
+    upper(12, "Operation Time", 2000, "min");
+  } else if (/water flow/i.test(name)) {
+    const slots = /Cryocooler/i.test(name) ? [13, 14, 15, 16] : [13];
+    slots.forEach((slot, i) =>
+      check(slot, `Flow ${"ABCD"[i]}`, (n) => n > 9, ">9 L/min"),
+    );
+  } else if (/Sector/i.test(name)) {
+    check(2, "Temperature", (n) => n < 33, "<33 °C");
+  } else if (/pressure/i.test(name)) {
+    const limit = /with gas/i.test(name)
+      ? 2e-3
+      : /Difference/i.test(name)
+        ? 5e-6
+        : 2e-4;
+    upper(17, "Pressure", limit, "Pa");
+  }
+  return warnings;
+}
+function reviewStandardWarnings(warnings) {
+  if (!warnings.length) return Promise.resolve(true);
+  const dialog = $("standardReview");
+  $("standardWarningList").replaceChildren(
+    ...warnings.map((text) => {
+      const item = document.createElement("li");
+      item.textContent = text;
+      return item;
+    }),
+  );
+  return new Promise((resolve) => {
+    dialog.onclose = () => resolve(dialog.returnValue === "confirm");
+    dialog.returnValue = "cancel";
+    dialog.showModal();
+  });
+}
 async function save(ev) {
   ev.preventDefault();
   if (saving) return;
@@ -161,6 +223,21 @@ async function save(ev) {
       throw new Error(
         "These unchanged values were already saved. Edit the date/time or readings for a new record.",
       );
+    const warnings = rows.flatMap(standardWarnings);
+    saving = true;
+    $("saveButton").disabled = true;
+    if (!(await reviewStandardWarnings(warnings))) {
+      $("status").textContent =
+        "Cancelled. Review the listed values; nothing was sent.";
+      $("status").className = "bad";
+      return;
+    }
+    // Existing backend already maps the Status column; no new schema required.
+    rows.forEach((row) => {
+      row.status = standardWarnings(row).length
+        ? "OUT_OF_STANDARD_CONFIRMED"
+        : "WITHIN_STANDARD";
+    });
     if (!pendingSave || pendingSave.fingerprint !== fingerprint)
       pendingSave = { fingerprint, recordId: crypto.randomUUID() };
     payload.recordId = pendingSave.recordId;

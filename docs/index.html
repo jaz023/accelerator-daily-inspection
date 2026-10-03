@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Accelerator Daily Inspection</title>
-    <link rel="stylesheet" href="style.css?v=20261003-longterm" />
+    <link rel="stylesheet" href="style.css?v=20261003-standard-warning" />
   </head>
   <body>
     <main>
@@ -30,6 +30,25 @@
       <form id="form"></form>
       <button id="saveButton" form="form">Save all to Google Sheet</button>
       <span id="status"></span>
+      <p class="note">
+        Readings outside the displayed standards require confirmation before
+        saving. Real abnormal readings can still be recorded.
+      </p>
+      <dialog id="standardReview" aria-labelledby="standardReviewTitle">
+        <h2 id="standardReviewTitle">
+          超出標準，請確認數值 / Out-of-standard readings
+        </h2>
+        <p>
+          以下數值超出目前表單標準。請核對是否抄錯；若是真實異常，仍可確認儲存。系統不會更改你的數值。
+        </p>
+        <ul id="standardWarningList"></ul>
+        <form method="dialog" class="review-actions">
+          <button value="cancel" autofocus>返回修改 / Review values</button>
+          <button value="confirm">
+            確認為實際數值，儲存 / Confirm and save
+          </button>
+        </form>
+      </dialog>
       <section class="panel trend-panel">
         <div class="trend-head">
           <div>
@@ -104,6 +123,6 @@
         </p>
       </section>
     </main>
-    <script src="app.js?v=20261003-longterm"></script>
+    <script src="app.js?v=20261003-standard-warning"></script>
   </body>
 </html>
