@@ -36,6 +36,7 @@ const common = [
     ["cryo_b_stop", "Cryopump-B 2nd / 1st temperature", "<20 / <85 K"],
   ];
 let trendRows = [];
+let backendSchemaVersion = 0;
 function items() {
   return [...common, ...($("mode").value === "Startup" ? startup : shutdown)];
 }
@@ -52,6 +53,63 @@ function nums(v) {
     Number,
   );
 }
+// Schema 2: each value slot has one unit and meaning, for both inspection modes.
+function measurementFor(item, recordedValue, remark = "") {
+  const numbers = nums(recordedValue);
+  const name = item[1];
+  const values = Object.fromEntries(
+    Array.from({ length: 13 }, (_, i) => ["value" + (i + 1), ""]),
+  );
+  let columns, unit;
+  if (/humidity/i.test(name)) {
+    columns = [2, 1];
+    unit = "°C / %";
+  } else if (/Sector/i.test(name)) {
+    columns = [2];
+    unit = "°C";
+  } else if (/Cryopump-[AB]/i.test(name)) {
+    columns = [5, 6];
+    unit = "K";
+  } else if (/Filament/i.test(name)) {
+    columns = [7, 8];
+    unit = "A / min";
+  } else if (/Cryocooler/i.test(name)) {
+    columns = [9, 10, 11, 12];
+    unit = "L/min";
+  } else if (/water flow/i.test(name)) {
+    columns = [9];
+    unit = "L/min";
+  } else if (/pressure/i.test(name)) {
+    columns = [13];
+    unit = "Pa";
+  } else if (/power lead/i.test(name)) {
+    columns = [4];
+    unit = "K";
+  } else if (/upper coil/i.test(name)) {
+    columns = [3];
+    unit = "K";
+  } else throw new Error("Unknown Check Item: " + name);
+  if (
+    numbers.length !== columns.length ||
+    numbers.some((n) => !Number.isFinite(n))
+  ) {
+    throw new Error(
+      name + ": enter exactly " + columns.length + " numeric value(s).",
+    );
+  }
+  columns.forEach((column, i) => {
+    values["value" + column] = numbers[i];
+  });
+  return {
+    parameterId: item[0],
+    checkItem: name,
+    unit,
+    standardValue: item[2],
+    recordedValue,
+    ...values,
+    remark,
+  };
+}
 async function save(ev) {
   ev.preventDefault();
   const rs = [...document.querySelectorAll(".row")],
@@ -64,37 +122,25 @@ async function save(ev) {
     $("status").className = "bad";
     return;
   }
-  const rows = rs.map((r) => {
-    const x = items().find((i) => i[0] === r.dataset.id),
-      v = r.querySelector(".v").value,
-      n = nums(v),
-      th = x[3] === "th",
-      flow = /flow/.test(x[0]),
-      sector = x[0] === "sector";
-    return {
-      parameterId: x[0],
-      checkItem: x[1],
-      unit: th ? "°C / %" : "",
-      standardValue: x[2],
-      recordedValue: v,
-      value1: th ? (n[1] ?? "") : "",
-      value2: th || sector ? (n[0] ?? "") : "",
-      value3: th || flow || sector ? "" : (n[0] ?? ""),
-      value4: th || flow || sector ? "" : (n[1] ?? ""),
-      value5: flow ? (n[0] ?? "") : "",
-      value6: flow ? (n[1] ?? "") : "",
-      value7: flow ? (n[2] ?? "") : "",
-      value8: flow ? (n[3] ?? "") : "",
-      remark: r.querySelector(".remark").value,
-    };
-  });
-  $("status").textContent = "Saving…";
   try {
+    if (backendSchemaVersion !== 2)
+      throw new Error(
+        "Backend schema is not ready. Refresh trends before saving.",
+      );
+    const rows = rs.map((r) =>
+      measurementFor(
+        items().find((i) => i[0] === r.dataset.id),
+        r.querySelector(".v").value,
+        r.querySelector(".remark").value,
+      ),
+    );
+    $("status").textContent = "Saving…";
     const out = await (
       await fetch(API, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({
+          valueSchemaVersion: 2,
           recordId: `${$("date").value}-${Date.now()}`,
           inspectionDate: $("date").value,
           completionTime: $("time").value,
@@ -137,25 +183,25 @@ function seriesFor(name) {
     ];
   if (/Cryopump-[AB]/i.test(name))
     return [
-      { column: 4, label: "1st Temperature (K)" },
-      { column: 3, label: "2nd Temperature (K)" },
+      { column: 6, label: "1st Temperature (K)" },
+      { column: 5, label: "2nd Temperature (K)" },
     ];
   if (/Cryocooler/i.test(name))
-    return [5, 6, 7, 8].map((column, i) => ({
+    return [9, 10, 11, 12].map((column, i) => ({
       column,
       label: "Flow " + "ABCD"[i] + " (L/min)",
     }));
   if (/water flow/i.test(name))
-    return [{ column: 5, label: "Water Flow (L/min)" }];
+    return [{ column: 9, label: "Water Flow (L/min)" }];
   if (/Filament/i.test(name))
     return [
-      { column: 4, label: "Operation Time (min)" },
-      { column: 3, label: "Current (A)" },
+      { column: 8, label: "Operation Time (min)" },
+      { column: 7, label: "Current (A)" },
     ];
   if (/Sector/i.test(name)) return [{ column: 2, label: "Temperature (°C)" }];
   return [
     {
-      column: 3,
+      column: /pressure/i.test(name) ? 13 : /power lead/i.test(name) ? 4 : 3,
       label: /pressure/i.test(name) ? "Pressure (Pa)" : "Temperature (K)",
     },
   ];
@@ -445,6 +491,9 @@ async function loadTrends() {
     const out = await response.json();
     if (!out.ok || !Array.isArray(out.rows))
       throw Error(out.error || "Trend data API is not enabled");
+    backendSchemaVersion = Number(out.valueSchemaVersion || 1);
+    if (backendSchemaVersion !== 2)
+      throw new Error("Deploy the 13-value backend before using this version.");
     trendRows = out.rows;
     const selected = $("trendItem").value;
     // Include every configured Check Item, even before its first measurement.
