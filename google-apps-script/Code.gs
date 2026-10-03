@@ -1,6 +1,57 @@
 const SHEET_NAME = 'Inspection_Data';
 const VALUE_SCHEMA_VERSION = 3;
 
+// Grow in blocks; retain existing rows and formulas. This is an application
+// safety threshold, not a promise of unlimited Google Sheets storage.
+function ensureRowCapacity_(sheet, required) {
+  const current = sheet.getMaxRows();
+  if (required <= current) return;
+  const target = Math.ceil(required / 2000) * 2000;
+  const cells = sheet.getParent().getSheets().reduce((sum, tab) =>
+    sum + tab.getMaxRows() * tab.getMaxColumns(), 0);
+  if (cells + (target - current) * sheet.getMaxColumns() > 18000000)
+    throw new Error('Workbook is approaching capacity. Archive older years before recording more data.');
+  sheet.insertRowsAfter(current, target - current);
+}
+
+function expandLongTermCapacity() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+    if (!sheet) throw new Error('Worksheet not found: ' + SHEET_NAME);
+    ensureRowCapacity_(sheet, Math.max(20000, sheet.getLastRow() + 2000));
+    createTrendSheets();
+    Logger.log('Long-term capacity ready; original records retained.');
+  } finally { lock.releaseLock(); }
+}
+
+function aggregateTrendRows_(rows, period) {
+  if (period === 'raw') return rows;
+  const groups = new Map();
+  rows.forEach(row => {
+    const date = String(row['Inspection Date']);
+    const day = period === 'monthly' ? date.slice(0, 7) + '-01' : date.slice(0, 10);
+    const key = JSON.stringify([row['Check Item'], day]);
+    if (!groups.has(key)) groups.set(key, {
+      'Check Item': row['Check Item'], 'Inspection Date': day,
+      'Completion Time': '00:00', 'Inspection Type': 'Average', SampleCount: 0
+    });
+    const group = groups.get(key);
+    group.SampleCount++;
+    for (let n = 1; n <= 17; n++) {
+      const field = 'Value ' + n, value = row[field];
+      if (value === '' || value == null || !Number.isFinite(Number(value))) continue;
+      const number = Number(value), count = (group[field + ' Count'] || 0) + 1;
+      group[field] = ((group[field] || 0) * (count - 1) + number) / count;
+      group[field + ' Count'] = count;
+      group[field + ' Min'] = count === 1 ? number : Math.min(group[field + ' Min'], number);
+      group[field + ' Max'] = count === 1 ? number : Math.max(group[field + ' Max'], number);
+    }
+  });
+  return [...groups.values()].sort((a, b) => a['Inspection Date'].localeCompare(b['Inspection Date']));
+}
+
 function valueSchemaKey_(sheet) {
   return 'valueSchema:' + sheet.getParent().getId() + ':' + sheet.getSheetId();
 }
@@ -79,7 +130,7 @@ function formatValueColumns_(sheet, headers) {
   for (let n = 1; n <= 17; n++) {
     const column = headers.indexOf('Value ' + n) + 1;
     if (!column) throw new Error('Missing Value ' + n);
-    sheet.getRange(2, column, sheet.getMaxRows() - 1, 1).setNumberFormat(n === 17 ? '0.000000E+00' : '0.############');
+    sheet.getRange(2, column, Math.max(1, sheet.getLastRow() - 1), 1).setNumberFormat(n === 17 ? '0.000000E+00' : '0.############');
   }
 }
 
@@ -142,7 +193,7 @@ function migrateValueSchemaV3() {
   } finally { lock.releaseLock(); }
 }
 
-function doGet() {
+function doGet(e) {
   try {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
     if (!sheet) throw new Error('Worksheet not found: ' + SHEET_NAME);
@@ -155,7 +206,23 @@ function doGet() {
       });
       return result;
     });
-    return jsonResponse({ ok: true, valueSchemaVersion: Number(PropertiesService.getScriptProperties().getProperty(valueSchemaKey_(sheet)) || 1), rows: rows });
+    const query = (e && e.parameter) || {};
+    const checkItems = [...new Set(rows.map(row => row['Check Item']).filter(Boolean))];
+    const period = query.period || 'raw';
+    if (!['raw', 'daily', 'monthly'].includes(period)) throw new Error('Invalid aggregation period.');
+    ['from', 'to'].forEach(key => {
+      if (query[key]) normalizeInspectionStamp_(query[key], '00:00');
+    });
+    if (query.from && query.to && query.from > query.to) throw new Error('Invalid date range.');
+    const filtered = rows.filter(row => (!query.checkItem || row['Check Item'] === query.checkItem) &&
+      (!query.from || row['Inspection Date'] >= query.from) &&
+      (!query.to || row['Inspection Date'] <= query.to));
+    if (query.trend && period === 'raw' && filtered.length > 12000)
+      throw new Error('More than 12000 readings. Narrow the dates or use daily/monthly averages.');
+    return jsonResponse({ ok: true, trendApiVersion: 1,
+      valueSchemaVersion: Number(PropertiesService.getScriptProperties().getProperty(valueSchemaKey_(sheet)) || 1),
+      checkItems, sourceCount: filtered.length, aggregation: period,
+      rows: aggregateTrendRows_(filtered, period) });
   } catch (err) {
     return jsonResponse({ ok: false, error: String(err) });
   }
@@ -225,6 +292,17 @@ function doPost(e) {
       for (let n = 1; n <= 17; n++) fields['Value ' + n] = numberOrBlank(item['value' + n]);
       return headers.map(h => Object.prototype.hasOwnProperty.call(fields, h) ? fields[h] : '');
     });
+    if (!body.recordId) throw new Error('Record ID is required.');
+    const existing = sheet.getDataRange().getValues().slice(1)
+      .filter(row => String(row[headers.indexOf('Record ID')]) === String(body.recordId));
+    if (existing.length) {
+      const created = headers.indexOf('Created At');
+      const comparable = row => JSON.stringify(row.map((v, i) => i === created ? '' : v));
+      if (existing.length !== rows.length || existing.some((row, i) => comparable(row) !== comparable(rows[i])))
+        throw new Error('Record ID already exists with different data. Review the saved record.');
+      return jsonResponse({ok:true, valueSchemaVersion:3, duplicate:true, rowsAdded:0});
+    }
+    ensureRowCapacity_(sheet, Math.max(sheet.getLastRow() + rows.length, 2));
     sheet.getRange(Math.max(sheet.getLastRow() + 1, 2), 1, rows.length, headers.length).setValues(rows);
     formatValueColumns_(sheet, headers);
     sortInspectionData_(sheet, headers);

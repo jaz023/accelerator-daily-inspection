@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Accelerator Daily Inspection</title>
-    <link rel="stylesheet" href="style.css?v=20261003-value13" />
+    <link rel="stylesheet" href="style.css?v=20261003-longterm" />
   </head>
   <body>
     <main>
@@ -28,7 +28,7 @@
         </div>
       </section>
       <form id="form"></form>
-      <button form="form">Save all to Google Sheet</button>
+      <button id="saveButton" form="form">Save all to Google Sheet</button>
       <span id="status"></span>
       <section class="panel trend-panel">
         <div class="trend-head">
@@ -46,6 +46,8 @@
           >
         </div>
         <div class="trend-controls">
+          <label>Range<select id="trendRange"><option value="30">Latest 30 days</option><option value="90">Latest 90 days</option><option value="365">Latest year</option><option value="all">All dates</option><option value="custom">Custom</option></select></label>
+          <label>View<select id="trendPeriod"><option value="raw">Individual readings</option><option value="daily">Daily average</option><option value="monthly">Monthly average</option></select></label>
           <label>From date<input id="trendFrom" type="date" /></label>
           <label>To date<input id="trendTo" type="date" /></label>
           <button id="refreshTrends" type="button">Refresh trends</button>
@@ -69,6 +71,10 @@
         </p>
         <details class="trend-values">
           <summary>View source values</summary>
+          <p class="note">Averages retain each series' minimum and maximum below. Switch to individual readings to inspect spikes.</p>
+          <button id="tablePrev" type="button">Previous</button>
+          <span id="tablePage"></span>
+          <button id="tableNext" type="button">Next</button>
           <div class="table-scroll">
             <table>
               <thead id="trendTableHead"></thead>
@@ -77,10 +83,10 @@
           </div>
         </details>
         <p class="version">
-          Check Item trends · 2026-10-03 · Value schema 3 (17 fields)
+          Check Item trends · Long-term view · Value schema 3 (17 fields)
         </p>
       </section>
     </main>
-    <script src="app.js?v=20261003-value17-sorted"></script>
+    <script src="app.js?v=20261003-longterm"></script>
   </body>
 </html>

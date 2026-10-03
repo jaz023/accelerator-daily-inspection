@@ -63,6 +63,7 @@ function createCheckItemTrend_(ss, map, name, sourceRows) {
   const title = ('Trend_' + name.replace(/[\\/?:*\[\]]/g, '_')).substring(0, 100);
   let sheet = ss.getSheetByName(title);
   if (!sheet) sheet = ss.insertSheet(title);
+  ensureRowCapacity_(sheet, Math.max(2000, sourceRows.length + 100));
   sheet.getCharts().forEach(chart => sheet.removeChart(chart));
   sheet.clear();
   const headers = ['Inspection Date', 'Completion Time', 'Check Item',
@@ -115,6 +116,7 @@ function refreshSavedTrendCharts_(dataSheet, headers, measurements) {
     const title = ('Trend_' + name.replace(/[\\/?:*\[\]]/g, '_')).substring(0, 100);
     const sheet = ss.getSheetByName(title);
     if (!sheet) { createCheckItemTrend_(ss, map, name, matching); return; }
+    ensureRowCapacity_(sheet, Math.max(2000, matching.length + 100));
     const series = trendSeriesFor_(name);
     sheet.getCharts().forEach(chart => sheet.removeChart(chart));
     createCheckItemChart_(sheet, name, series, map, matching, series.length + 4);
@@ -141,7 +143,8 @@ function createCheckItemChart_(sheet, name, series, map, sourceRows, dateTimeCol
   });
   const axis = (title, nums, extra) => {
     if (!nums.length) return { title: title + extra };
-    const low = Math.min(...nums), highValue = Math.max(...nums);
+    const low = nums.reduce((a, b) => Math.min(a, b), Infinity);
+    const highValue = nums.reduce((a, b) => Math.max(a, b), -Infinity);
     const pad = Math.max((highValue - low) * 0.15, Math.abs(highValue) * 0.005, 1e-10);
     return { title: title + extra, viewWindow: { min: low - pad, max: highValue + pad } };
   };
