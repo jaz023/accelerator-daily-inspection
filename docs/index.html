@@ -46,8 +46,22 @@
           >
         </div>
         <div class="trend-controls">
-          <label>Range<select id="trendRange"><option value="30">Latest 30 days</option><option value="90">Latest 90 days</option><option value="365">Latest year</option><option value="all">All dates</option><option value="custom">Custom</option></select></label>
-          <label>View<select id="trendPeriod"><option value="raw">Individual readings</option><option value="daily">Daily average</option><option value="monthly">Monthly average</option></select></label>
+          <label
+            >Range<select id="trendRange">
+              <option value="30">Latest 30 days</option>
+              <option value="90">Latest 90 days</option>
+              <option value="365">Latest year</option>
+              <option value="all">All dates</option>
+              <option value="custom">Custom</option>
+            </select></label
+          >
+          <label
+            >View<select id="trendPeriod">
+              <option value="raw">Individual readings</option>
+              <option value="daily">Daily average</option>
+              <option value="monthly">Monthly average</option>
+            </select></label
+          >
           <label>From date<input id="trendFrom" type="date" /></label>
           <label>To date<input id="trendTo" type="date" /></label>
           <button id="refreshTrends" type="button">Refresh trends</button>
@@ -71,7 +85,10 @@
         </p>
         <details class="trend-values">
           <summary>View source values</summary>
-          <p class="note">Averages retain each series' minimum and maximum below. Switch to individual readings to inspect spikes.</p>
+          <p class="note">
+            Averages retain each series' minimum and maximum below. Switch to
+            individual readings to inspect spikes.
+          </p>
           <button id="tablePrev" type="button">Previous</button>
           <span id="tablePage"></span>
           <button id="tableNext" type="button">Next</button>

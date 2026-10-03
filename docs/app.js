@@ -39,8 +39,12 @@ let trendRows = [];
 let backendSchemaVersion = 0;
 let saving = false;
 let pendingSave = null;
-try { pendingSave = JSON.parse(sessionStorage.getItem('inspectionPending') || 'null'); } catch (_) {}
-let lastSavedFingerprint = '';
+try {
+  pendingSave = JSON.parse(
+    sessionStorage.getItem("inspectionPending") || "null",
+  );
+} catch (_) {}
+let lastSavedFingerprint = "";
 let tablePage = 0;
 let trendInfo = {};
 let loadGeneration = 0;
@@ -143,17 +147,26 @@ async function save(ev) {
       ),
     );
     const payload = {
-      valueSchemaVersion: 3, inspectionDate: $("date").value,
-      completionTime: $("time").value, inspectionType: $("mode").value,
+      valueSchemaVersion: 3,
+      inspectionDate: $("date").value,
+      completionTime: $("time").value,
+      inspectionType: $("mode").value,
       workMode: $("op2").value.trim() ? "Two operators" : "Single operator",
-      operator1: op, operator2: $("op2").value.trim(), measurements: rows
+      operator1: op,
+      operator2: $("op2").value.trim(),
+      measurements: rows,
     };
     const fingerprint = JSON.stringify(payload);
-    if (fingerprint === lastSavedFingerprint) throw new Error('These unchanged values were already saved. Edit the date/time or readings for a new record.');
+    if (fingerprint === lastSavedFingerprint)
+      throw new Error(
+        "These unchanged values were already saved. Edit the date/time or readings for a new record.",
+      );
     if (!pendingSave || pendingSave.fingerprint !== fingerprint)
       pendingSave = { fingerprint, recordId: crypto.randomUUID() };
     payload.recordId = pendingSave.recordId;
-    try { sessionStorage.setItem('inspectionPending', JSON.stringify(pendingSave)); } catch (_) {}
+    try {
+      sessionStorage.setItem("inspectionPending", JSON.stringify(pendingSave));
+    } catch (_) {}
     saving = true;
     $("saveButton").disabled = true;
     $("status").textContent = "Saving…";
@@ -167,9 +180,16 @@ async function save(ev) {
     if (!out.ok) throw Error(out.error);
     lastSavedFingerprint = fingerprint;
     pendingSave = null;
-    try { sessionStorage.removeItem('inspectionPending'); } catch (_) {}
-    $("status").textContent = (out.duplicate ? 'Already saved; no duplicate rows added.' : `Saved ${out.rowsAdded} rows.`) +
-      (out.trendsUpdated === false ? " Sheet chart refresh failed; run createTrendSheets. Do not resubmit." : "");
+    try {
+      sessionStorage.removeItem("inspectionPending");
+    } catch (_) {}
+    $("status").textContent =
+      (out.duplicate
+        ? "Already saved; no duplicate rows added."
+        : `Saved ${out.rowsAdded} rows.`) +
+      (out.trendsUpdated === false
+        ? " Sheet chart refresh failed; run createTrendSheets. Do not resubmit."
+        : "");
     $("status").className = "ok";
     loadTrends();
   } catch (err) {
@@ -218,8 +238,16 @@ function seriesFor(name) {
       { column: 11, label: "Current (A)" },
     ];
   if (/Sector/i.test(name)) return [{ column: 2, label: "Temperature (°C)" }];
-  if (/upper coil/i.test(name)) return [3, 4, 5, 6].map((column, i) => ({column, label: 'Coil ' + (i + 1) + ' (K)'}));
-  if (/power lead/i.test(name)) return [7, 8].map((column, i) => ({column, label: 'Lead ' + (i + 1) + ' (K)'}));
+  if (/upper coil/i.test(name))
+    return [3, 4, 5, 6].map((column, i) => ({
+      column,
+      label: "Coil " + (i + 1) + " (K)",
+    }));
+  if (/power lead/i.test(name))
+    return [7, 8].map((column, i) => ({
+      column,
+      label: "Lead " + (i + 1) + " (K)",
+    }));
   return [
     {
       column: /pressure/i.test(name) ? 17 : 3,
@@ -340,9 +368,12 @@ function draw() {
     emptyChart("Start date must not be after end date.");
     return;
   }
-  const model = trendModel($("trendItem").value, trendRows,
-    trendInfo.aggregation === 'raw' ? from : '',
-    trendInfo.aggregation === 'raw' ? to : '');
+  const model = trendModel(
+    $("trendItem").value,
+    trendRows,
+    trendInfo.aggregation === "raw" ? from : "",
+    trendInfo.aggregation === "raw" ? to : "",
+  );
   if (!model.rows.length || !model.series.length) {
     emptyChart("No numeric data in the selected date range.");
     return;
@@ -473,7 +504,9 @@ function draw() {
     ": " +
     model.rows.length +
     " records. Grouped by Check Item. " +
-    (trendInfo.aggregation !== 'raw' ? `${trendInfo.aggregation} averages from ${trendInfo.sourceCount} readings; averages may hide spikes. ` : '') +
+    (trendInfo.aggregation !== "raw"
+      ? `${trendInfo.aggregation} averages from ${trendInfo.sourceCount} readings; averages may hide spikes. `
+      : "") +
     (model.dual
       ? "Higher values: primary / left axis; lower values: secondary / right axis."
       : "Shared Y-axis for all series.");
@@ -489,25 +522,32 @@ function draw() {
   });
   $("trendTableHead").replaceChildren(header);
   $("trendTableBody").replaceChildren(
-    ...model.rows.slice(tablePage * 200, (tablePage + 1) * 200).map((row, offset) => {
-      const i = tablePage * 200 + offset;
-      const tr = document.createElement("tr");
-      [
-        dateLabel(times[i]),
-        field(row, "Inspection Type", "inspectionType") || "",
-        ...model.series.map((s) =>
-          Number.isFinite(s.values[i]) ? formatNumber(s.values[i]) +
-            (trendInfo.aggregation !== 'raw' ? ` (min ${formatNumber(row['Value ' + s.column + ' Min'])}, max ${formatNumber(row['Value ' + s.column + ' Max'])}, n=${row['Value ' + s.column + ' Count']})` : '') : "—",
-        ),
-      ].forEach((text) => {
-        const td = document.createElement("td");
-        td.textContent = text;
-        tr.append(td);
-      });
-      return tr;
-    }),
+    ...model.rows
+      .slice(tablePage * 200, (tablePage + 1) * 200)
+      .map((row, offset) => {
+        const i = tablePage * 200 + offset;
+        const tr = document.createElement("tr");
+        [
+          dateLabel(times[i]),
+          field(row, "Inspection Type", "inspectionType") || "",
+          ...model.series.map((s) =>
+            Number.isFinite(s.values[i])
+              ? formatNumber(s.values[i]) +
+                (trendInfo.aggregation !== "raw"
+                  ? ` (min ${formatNumber(row["Value " + s.column + " Min"])}, max ${formatNumber(row["Value " + s.column + " Max"])}, n=${row["Value " + s.column + " Count"]})`
+                  : "")
+              : "—",
+          ),
+        ].forEach((text) => {
+          const td = document.createElement("td");
+          td.textContent = text;
+          tr.append(td);
+        });
+        return tr;
+      }),
   );
-  $("tablePage").textContent = `Page ${tablePage + 1} / ${Math.ceil(model.rows.length / 200)} · ${model.rows.length} rows`;
+  $("tablePage").textContent =
+    `Page ${tablePage + 1} / ${Math.ceil(model.rows.length / 200)} · ${model.rows.length} rows`;
   $("tablePrev").disabled = tablePage === 0;
   $("tableNext").disabled = (tablePage + 1) * 200 >= model.rows.length;
 }
@@ -516,12 +556,18 @@ async function loadTrends() {
   $("refreshTrends").disabled = true;
   $("trendStatus").textContent = "Loading Google Sheet data…";
   try {
-    const params = new URLSearchParams({trend:'1', period:$("trendPeriod").value});
-    if ($("trendFrom").value) params.set('from', $("trendFrom").value);
-    if ($("trendTo").value) params.set('to', $("trendTo").value);
+    const params = new URLSearchParams({
+      trend: "1",
+      period: $("trendPeriod").value,
+    });
+    if ($("trendFrom").value) params.set("from", $("trendFrom").value);
+    if ($("trendTo").value) params.set("to", $("trendTo").value);
     const selectedName = $("trendItem").value;
-    params.set('checkItem', selectedName && selectedName !== 'Loading…' ? selectedName : common[0][1]);
-    const response = await fetch(API + '?' + params, { cache: "no-store" });
+    params.set(
+      "checkItem",
+      selectedName && selectedName !== "Loading…" ? selectedName : common[0][1],
+    );
+    const response = await fetch(API + "?" + params, { cache: "no-store" });
     if (!response.ok) throw Error("HTTP " + response.status);
     const out = await response.json();
     if (generation !== loadGeneration) return;
@@ -531,8 +577,14 @@ async function loadTrends() {
     if (backendSchemaVersion !== 3)
       throw new Error("Deploy the 17-value backend before using this version.");
     trendRows = out.rows;
-    trendInfo = {aggregation:out.aggregation || 'raw', sourceCount:out.sourceCount};
-    if (out.trendApiVersion !== 1) throw new Error('Deploy the long-term backend before using this version.');
+    trendInfo = {
+      aggregation: out.aggregation || "raw",
+      sourceCount: out.sourceCount,
+    };
+    if (out.trendApiVersion !== 1)
+      throw new Error(
+        "Deploy the long-term backend before using this version.",
+      );
     tablePage = 0;
     const selected = $("trendItem").value;
     // Include every configured Check Item, even before its first measurement.
@@ -556,8 +608,8 @@ async function loadTrends() {
   } catch (err) {
     if (generation !== loadGeneration) return;
     trendRows = [];
-    $("trendChart").getContext('2d').clearRect(0, 0, 1100, 480);
-    emptyChart('Trend data unavailable: ' + err.message);
+    $("trendChart").getContext("2d").clearRect(0, 0, 1100, 480);
+    emptyChart("Trend data unavailable: " + err.message);
     $("trendStatus").textContent = "Trend data unavailable: " + err.message;
   } finally {
     if (generation === loadGeneration) $("refreshTrends").disabled = false;
@@ -570,18 +622,31 @@ $("mode").onchange = render;
 $("form").onsubmit = save;
 function setTrendRange() {
   const days = $("trendRange").value;
-  if (days === 'custom') return;
-  $("trendTo").value = days === 'all' ? '' : dateLabel(Date.now()).slice(0, 10);
+  if (days === "custom") return;
+  $("trendTo").value = days === "all" ? "" : dateLabel(Date.now()).slice(0, 10);
   const start = new Date();
   start.setDate(start.getDate() - Number(days) + 1);
-  $("trendFrom").value = days === 'all' ? '' : dateLabel(start.getTime()).slice(0, 10);
+  $("trendFrom").value =
+    days === "all" ? "" : dateLabel(start.getTime()).slice(0, 10);
 }
 $("trendItem").onchange = loadTrends;
 $("trendPeriod").onchange = loadTrends;
-$("trendRange").onchange = () => {setTrendRange(); loadTrends();};
-$("trendFrom").onchange = $("trendTo").onchange = () => {$("trendRange").value = 'custom'; loadTrends();};
-$("tablePrev").onclick = () => {tablePage--; draw();};
-$("tableNext").onclick = () => {tablePage++; draw();};
+$("trendRange").onchange = () => {
+  setTrendRange();
+  loadTrends();
+};
+$("trendFrom").onchange = $("trendTo").onchange = () => {
+  $("trendRange").value = "custom";
+  loadTrends();
+};
+$("tablePrev").onclick = () => {
+  tablePage--;
+  draw();
+};
+$("tableNext").onclick = () => {
+  tablePage++;
+  draw();
+};
 $("refreshTrends").onclick = loadTrends;
 render();
 setTrendRange();
