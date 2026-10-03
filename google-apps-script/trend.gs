@@ -88,6 +88,10 @@ function createCheckItemTrend_(ss, map, name, sourceRows) {
   );
   sheet.getRange('A2:A').setNumberFormat('yyyy-mm-dd');
   sheet.getRange('B2:B').setNumberFormat('HH:mm');
+  // Expanded series can occupy an old DateTime column. Explicitly reset all
+  // measurement formats so Sheets charts never infer dates from temperatures.
+  sheet.getRange(2, 4, sheet.getMaxRows() - 1, series.length)
+    .setNumberFormat(/pressure/i.test(name) ? '0.000000E+00' : '0.############');
   sheet.getRange(2, last, sheet.getMaxRows() - 1).setNumberFormat('yyyy-mm-dd HH:mm');
   sheet.setFrozenRows(1);
   sheet.setColumnWidths(1, 2, 155);
