@@ -1,5 +1,5 @@
 const API =
-  "https://script.google.com/macros/s/AKfycbx0Bj7pIwszUgv9O8mkLNjoGUj01i6jMz_wAFYzCER9XBjHOdx1sdtGjD8N79WzQPyqiA/exec";
+  "https://script.google.com/macros/s/AKfycbzCwHSg6xebukXM-WoqBrzgr74Lq31ug_iFPZQG4oXfyQhdfcnjfF0Or3J9RJmw1iJd0g/exec";
 const $ = (id) => document.getElementById(id);
 const common = [
     [
