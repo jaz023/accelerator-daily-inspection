@@ -1,7 +1,8 @@
 // Inspection trends — grouped by Check Item (K), never Device/Parameter ID.
-// Value 1 = humidity; 2 = Celsius; 3 = coil K; 4 = lead K; 5/6 = Cryopump K;
-// 7 = current A; 8 = minutes; 9..12 = flow A..D; 13 = pressure Pa.
-const TREND_SPREADSHEET_ID = '17aXvogL6PIfW10tz393kTzqatNRmBMoXNGl254yc9YI';
+// Value 1 humidity, 2 Celsius, 3..6 coil K, 7/8 lead K, 9/10 Cryopump K,
+// 11 current A, 12 minutes, 13..16 flow A..D, 17 pressure Pa.
+// Leave blank to use the spreadsheet this Apps Script project belongs to.
+const TREND_SPREADSHEET_ID = '';
 const DATA_SHEET_NAME = 'Inspection_Data';
 
 function trendSeriesFor_(name) {
@@ -10,26 +11,29 @@ function trendSeriesFor_(name) {
     { source: 'Value 1', label: 'Humidity (%)' }
   ];
   if (/Cryopump-[AB]/.test(name)) return [
-    { source: 'Value 5', label: '2nd Temperature (K)' },
-    { source: 'Value 6', label: '1st Temperature (K)' }
+    { source: 'Value 9', label: '2nd Temperature (K)' },
+    { source: 'Value 10', label: '1st Temperature (K)' }
   ];
-  if (/Cryocooler/.test(name)) return [9, 10, 11, 12].map((n, i) => ({
+  if (/Cryocooler/.test(name)) return [13, 14, 15, 16].map((n, i) => ({
     source: 'Value ' + n, label: 'Flow ' + 'ABCD'[i] + ' (L/min)'
   }));
-  if (/water flow/i.test(name)) return [{ source: 'Value 9', label: 'Water Flow (L/min)' }];
+  if (/water flow/i.test(name)) return [{ source: 'Value 13', label: 'Water Flow (L/min)' }];
   if (/Filament/i.test(name)) return [
-    { source: 'Value 7', label: 'Current (A)' },
-    { source: 'Value 8', label: 'Operation Time (min)' }
+    { source: 'Value 11', label: 'Current (A)' },
+    { source: 'Value 12', label: 'Operation Time (min)' }
   ];
   if (/Sector/i.test(name)) return [{ source: 'Value 2', label: 'Temperature (°C)' }];
-  if (/pressure/i.test(name)) return [{ source: 'Value 13', label: 'Pressure (Pa)' }];
-  return [{ source: /power lead/i.test(name) ? 'Value 4' : 'Value 3', label: 'Temperature (K)' }];
+  if (/pressure/i.test(name)) return [{ source: 'Value 17', label: 'Pressure (Pa)' }];
+  const slots = /power lead/i.test(name) ? [7, 8] : [3, 4, 5, 6];
+  return slots.map((n, i) => ({source:'Value ' + n, label:'Temperature ' + (i + 1) + ' (K)'}));
 }
 
 // Running this function updates trend sheets/charts, never Inspection_Data.
 // Existing sheets outside the new Check Item names are not deleted automatically.
 function createTrendSheets() {
-  const ss = SpreadsheetApp.openById(TREND_SPREADSHEET_ID);
+  const ss = TREND_SPREADSHEET_ID
+    ? SpreadsheetApp.openById(TREND_SPREADSHEET_ID)
+    : SpreadsheetApp.getActiveSpreadsheet();
   const dataSheet = ss.getSheetByName(DATA_SHEET_NAME);
   if (!dataSheet) throw new Error('Worksheet not found: ' + DATA_SHEET_NAME);
   const values = dataSheet.getDataRange().getValues();
@@ -92,6 +96,25 @@ function createCheckItemTrend_(ss, map, name, sourceRows) {
   sheet.setColumnWidth(last, 210);
   SpreadsheetApp.flush();
   createCheckItemChart_(sheet, name, series, map, sourceRows, last);
+}
+
+// Formula-driven tables already update automatically. Refresh only affected charts
+// so newly entered extremes remain visible on both primary/secondary axes.
+function refreshSavedTrendCharts_(dataSheet, headers, measurements) {
+  const map = {};
+  headers.forEach((h, i) => { map[h] = i + 1; });
+  const rows = dataSheet.getDataRange().getValues().slice(1);
+  const names = [...new Set(measurements.map(item => String(item.checkItem || '').trim()).filter(Boolean))];
+  const ss = dataSheet.getParent();
+  names.forEach(name => {
+    const matching = rows.filter(row => String(row[map['Check Item'] - 1] || '').trim() === name);
+    const title = ('Trend_' + name.replace(/[\\/?:*\[\]]/g, '_')).substring(0, 100);
+    const sheet = ss.getSheetByName(title);
+    if (!sheet) { createCheckItemTrend_(ss, map, name, matching); return; }
+    const series = trendSeriesFor_(name);
+    sheet.getCharts().forEach(chart => sheet.removeChart(chart));
+    createCheckItemChart_(sheet, name, series, map, matching, series.length + 4);
+  });
 }
 
 function createCheckItemChart_(sheet, name, series, map, sourceRows, dateTimeColumn) {

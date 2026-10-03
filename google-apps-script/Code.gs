@@ -1,13 +1,23 @@
 const SHEET_NAME = 'Inspection_Data';
-const VALUE_SCHEMA_VERSION = 2;
+const VALUE_SCHEMA_VERSION = 3;
 
 function valueSchemaKey_(sheet) {
   return 'valueSchema:' + sheet.getParent().getId() + ':' + sheet.getSheetId();
 }
 
 function ensureValueHeaders_(sheet) {
-  let headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getDisplayValues()[0].map(String);
-  const missing = Array.from({ length: 13 }, (_, i) => 'Value ' + (i + 1)).filter(h => !headers.includes(h));
+  let headers = sheet.getLastColumn()
+    ? sheet.getRange(1, 1, 1, sheet.getLastColumn()).getDisplayValues()[0].map(h => String(h).trim())
+    : [];
+  if (!headers.some(Boolean)) headers = [];
+  const expected = headers.length ? Array.from({ length: 17 }, (_, i) => 'Value ' + (i + 1)) : [
+    'Record ID', 'Inspection Date', 'Completion Time', 'Inspection Type',
+    'Work Mode', 'Operator 1', 'Operator 2', 'Place', 'Device', 'Parameter ID',
+    'Check Item', 'Unit', 'Standard Value', 'Recorded Value',
+    ...Array.from({ length: 17 }, (_, i) => 'Value ' + (i + 1)),
+    'Status', 'Remark', 'Created At'
+  ];
+  const missing = expected.filter(h => !headers.includes(h));
   if (headers.length + missing.length > sheet.getMaxColumns()) {
     sheet.insertColumnsAfter(sheet.getMaxColumns(), headers.length + missing.length - sheet.getMaxColumns());
   }
@@ -41,40 +51,94 @@ function upgradeLegacyMeasurement_(item) {
 // Run once before deploying. Copy the entire workbook before migrating values.
 // If interrupted, a retry reads the original backup, not partly migrated rows.
 function migrateValueSchemaV2() {
+  throw new Error('Use migrateValueSchemaV3 for the 17-field layout.');
+}
+
+function upgradeSchema2Measurement_(item) {
+  const result = Object.assign({}, item);
+  for (let n = 1; n <= 17; n++) result['value' + n] = '';
+  const mapping = {1:1, 2:2, 3:3, 4:7, 5:9, 6:10, 7:11, 8:12, 9:13, 10:14, 11:15, 12:16, 13:17};
+  Object.keys(mapping).forEach(n => { result['value' + mapping[n]] = numberOrBlank(item['value' + n]); });
+  return result;
+}
+
+function normalizeInspectionStamp_(date, time) {
+  const tz = Session.getScriptTimeZone() || 'Asia/Taipei';
+  const day = date instanceof Date ? Utilities.formatDate(date, tz, 'yyyy-MM-dd') : String(date || '').trim();
+  const clock = time instanceof Date ? Utilities.formatDate(time, tz, 'HH:mm') : String(time || '').trim();
+  const d = day.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  const t = clock.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (!d || !t || Number(t[1]) > 23 || Number(t[2]) > 59) throw new Error('Invalid inspection date/time: ' + day + ' ' + clock);
+  const canonical = d[1] + '-' + d[2].padStart(2, '0') + '-' + d[3].padStart(2, '0');
+  const check = new Date(canonical + 'T12:00:00Z');
+  if (!Number.isFinite(check.getTime()) || check.toISOString().slice(0, 10) !== canonical) throw new Error('Invalid date: ' + day);
+  return [canonical, t[1].padStart(2, '0') + ':' + t[2]];
+}
+
+function formatValueColumns_(sheet, headers) {
+  for (let n = 1; n <= 17; n++) {
+    const column = headers.indexOf('Value ' + n) + 1;
+    if (!column) throw new Error('Missing Value ' + n);
+    sheet.getRange(2, column, sheet.getMaxRows() - 1, 1).setNumberFormat(n === 17 ? '0.000000E+00' : '0.############');
+  }
+}
+
+function sortInspectionData_(sheet, headers) {
+  const count = sheet.getLastRow() - 1;
+  if (count < 1) return;
+  const dc = headers.indexOf('Inspection Date') + 1, tc = headers.indexOf('Completion Time') + 1;
+  if (!dc || !tc) throw new Error('Missing date/time headers.');
+  const dr = sheet.getRange(2, dc, count, 1), tr = sheet.getRange(2, tc, count, 1);
+  if (dr.getFormulas().some(r => r[0]) || tr.getFormulas().some(r => r[0])) throw new Error('Date/time formulas require manual review before sorting.');
+  const dates = dr.getValues(), times = tr.getValues();
+  const stamps = dates.map((r, i) => r[0] === '' && times[i][0] === '' ? ['', ''] : normalizeInspectionStamp_(r[0], times[i][0]));
+  dr.setNumberFormat('@').setValues(stamps.map(r => [r[0]]));
+  tr.setNumberFormat('@').setValues(stamps.map(r => [r[1]]));
+  sheet.getRange(2, 1, count, headers.length).sort([{column:dc, ascending:true}, {column:tc, ascending:true}]);
+}
+
+// Run once while the old client is paused; backup and schema marker prevent double conversion.
+function migrateValueSchemaV3() {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+    if (!sheet) throw new Error('Worksheet not found: ' + SHEET_NAME);
     const props = PropertiesService.getScriptProperties();
     const key = valueSchemaKey_(sheet);
-    if (props.getProperty(key) !== '2') {
-      let backupId = props.getProperty(key + ':backup');
+    if (props.getProperty(key) !== '3') {
+      if (props.getProperty(key) !== '2' && sheet.getLastRow() > 1) throw new Error('Expected schema 2. Review data before migrating.');
+      let backupId = props.getProperty(key + ':v3backup');
       if (!backupId) {
-        const backup = sheet.getParent().copy(sheet.getParent().getName() + '_backup_before_Value13_' +
+        const backup = sheet.getParent().copy(sheet.getParent().getName() + '_backup_before_Value17_' +
           Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyyMMdd_HHmmss'));
         backupId = backup.getId();
-        props.setProperty(key + ':backup', backupId);
+        props.setProperty(key + ':v3backup', backupId);
       }
       const original = SpreadsheetApp.openById(backupId).getSheetByName(SHEET_NAME).getDataRange().getValues();
-      const oldHeaders = original.shift().map(h => String(h).trim());
-      if (sheet.getLastRow() - 1 !== original.length) throw new Error('Data changed during migration; stop and review backup.');
+      const oldHeaders = (original.shift() || []).map(h => String(h).trim());
+      // A wholly blank worksheet has zero rows, not minus one data row.
+      if (Math.max(0, sheet.getLastRow() - 1) !== original.length) throw new Error('Data changed during migration; stop and review backup.');
       const converted = original.map(row => {
         const item = { checkItem: row[oldHeaders.indexOf('Check Item')] };
-        for (let n = 1; n <= 8; n++) item['value' + n] = row[oldHeaders.indexOf('Value ' + n)];
-        return upgradeLegacyMeasurement_(item);
+        for (let n = 1; n <= 13; n++) item['value' + n] = row[oldHeaders.indexOf('Value ' + n)];
+        normalizeInspectionStamp_(row[oldHeaders.indexOf('Inspection Date')], row[oldHeaders.indexOf('Completion Time')]);
+        return upgradeSchema2Measurement_(item);
       });
       const headers = ensureValueHeaders_(sheet);
-      for (let n = 1; n <= 13; n++) {
+      for (let n = 1; n <= 17; n++) {
         if (converted.length) sheet.getRange(2, headers.indexOf('Value ' + n) + 1, converted.length, 1)
           .setValues(converted.map(item => [item['value' + n]]));
       }
       SpreadsheetApp.flush();
-      props.setProperty(key, '2');
+      formatValueColumns_(sheet, headers);
+      props.setProperty(key, '3');
       Logger.log('Migrated rows: ' + converted.length);
       Logger.log('Backup: https://docs.google.com/spreadsheets/d/' + backupId + '/edit');
     }
+    sortInspectionData_(sheet, ensureValueHeaders_(sheet));
     createTrendSheets();
-    Logger.log('Value schema 2 ready (13 value fields).');
+    Logger.log('Value schema 3 ready (17 value fields), sorted by inspection date/time.');
   } finally { lock.releaseLock(); }
 }
 
@@ -104,9 +168,11 @@ function doPost(e) {
     const body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
     if (!sheet) throw new Error('Worksheet not found: ' + SHEET_NAME);
-    if (PropertiesService.getScriptProperties().getProperty(valueSchemaKey_(sheet)) !== '2') {
-      throw new Error('Run migrateValueSchemaV2 before accepting records.');
+    if (PropertiesService.getScriptProperties().getProperty(valueSchemaKey_(sheet)) !== '3') {
+      throw new Error('Run migrateValueSchemaV3 before accepting records.');
     }
+    if (body.valueSchemaVersion !== 3) throw new Error('Refresh to the 17-field client before saving.');
+    const stamp = normalizeInspectionStamp_(body.inspectionDate, body.completionTime);
     const measurements = Array.isArray(body.measurements) ? body.measurements : [];
     if (!measurements.length) throw new Error('No measurement data received');
 
@@ -116,7 +182,7 @@ function doPost(e) {
       'Work Mode', 'Operator 1', 'Operator 2', 'Place', 'Device', 'Parameter ID',
       'Check Item', 'Unit', 'Standard Value', 'Recorded Value',
       'Value 1', 'Value 2', 'Value 3', 'Value 4', 'Value 5', 'Value 6',
-      'Value 7', 'Value 8', 'Value 9', 'Value 10', 'Value 11', 'Value 12', 'Value 13', 'Status', 'Remark', 'Created At'
+      'Value 7', 'Value 8', 'Value 9', 'Value 10', 'Value 11', 'Value 12', 'Value 13', 'Value 14', 'Value 15', 'Value 16', 'Value 17', 'Status', 'Remark', 'Created At'
     ];
     let headers = sheet.getLastColumn()
       ? sheet.getRange(1, 1, 1, sheet.getLastColumn()).getDisplayValues()[0].map(h => String(h).trim())
@@ -135,11 +201,10 @@ function doPost(e) {
 
     const createdAt = new Date();
     const rows = measurements.map(item => {
-      if (body.valueSchemaVersion !== 2) item = upgradeLegacyMeasurement_(item);
       const fields = {
         'Record ID': body.recordId || '',
-        'Inspection Date': body.inspectionDate || '',
-        'Completion Time': body.completionTime || '',
+        'Inspection Date': stamp[0],
+        'Completion Time': stamp[1],
         'Inspection Type': body.inspectionType || '',
         'Work Mode': body.workMode || '',
         'Operator 1': body.operator1 || '',
@@ -155,13 +220,20 @@ function doPost(e) {
         'Remark': item.remark || '',
         'Created At': createdAt
       };
-      // 1: humidity; 2: Celsius; 3: coil K; 4: lead K; 5/6: Cryopump K;
-      // 7: A; 8: min; 9..12: flow L/min; 13: pressure Pa.
-      for (let n = 1; n <= 13; n++) fields['Value ' + n] = numberOrBlank(item['value' + n]);
+      // 1 humidity; 2 Celsius; 3..6 coil K; 7/8 lead K; 9/10 Cryopump K;
+      // 11 A; 12 min; 13..16 flow L/min; 17 pressure Pa.
+      for (let n = 1; n <= 17; n++) fields['Value ' + n] = numberOrBlank(item['value' + n]);
       return headers.map(h => Object.prototype.hasOwnProperty.call(fields, h) ? fields[h] : '');
     });
     sheet.getRange(Math.max(sheet.getLastRow() + 1, 2), 1, rows.length, headers.length).setValues(rows);
-    return jsonResponse({ ok: true, valueSchemaVersion: VALUE_SCHEMA_VERSION, rowsAdded: rows.length });
+    formatValueColumns_(sheet, headers);
+    sortInspectionData_(sheet, headers);
+    // Chart limits must follow new values, not remain fixed to migration-day data.
+    // A chart failure must not report a saved record as failed (and cause duplicates).
+    let trendsUpdated = true;
+    try { refreshSavedTrendCharts_(sheet, headers, measurements); }
+    catch (chartError) { trendsUpdated = false; Logger.log('Saved; chart refresh failed: ' + chartError); }
+    return jsonResponse({ ok: true, valueSchemaVersion: VALUE_SCHEMA_VERSION, rowsAdded: rows.length, trendsUpdated: trendsUpdated });
   } catch (err) {
     return jsonResponse({ ok: false, error: String(err) });
   } finally {
