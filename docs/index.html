@@ -1,1 +1,84 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Accelerator Daily Inspection</title><link rel="stylesheet" href="style.css"></head><body><main><h1>Accelerator Daily Inspection</h1><p class="note">Electronic record for reference only. The signed paper sheet remains the official record.</p><section class="panel"><div class="meta"><label>Date<input id="date" type="date"></label><label>Completion time<input id="time" type="time"></label><label>Inspection type<select id="mode"><option>Startup</option><option>Shutdown</option></select></label><label>Operator 1 *<input id="op1" required></label><label>Operator 2<input id="op2"></label></div></section><form id="form"></form><button form="form">Save all to Google Sheet</button> <span id="status"></span><section class="panel trend-panel"><div class="trend-head"><div><h2>Check Item Trend</h2><p class="note">Select one check item to view its values over time.</p></div><label>Check item<select id="trendItem"><option>Loading…</option></select></label></div><canvas id="trendChart" width="1000" height="420"></canvas><p id="trendStatus" class="note">Loading Google Sheet data…</p></section></main><script src="app.js?v=20261002-7"></script></body></html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Accelerator Daily Inspection</title>
+    <link rel="stylesheet" href="style.css?v=20261003-checkitem-axes" />
+  </head>
+  <body>
+    <main>
+      <h1>Accelerator Daily Inspection</h1>
+      <p class="note">
+        Electronic record for reference only. The signed paper sheet remains the
+        official record.
+      </p>
+      <section class="panel">
+        <div class="meta">
+          <label>Date<input id="date" type="date" /></label>
+          <label>Completion time<input id="time" type="time" /></label>
+          <label
+            >Inspection type<select id="mode">
+              <option>Startup</option>
+              <option>Shutdown</option>
+            </select></label
+          >
+          <label>Operator 1 *<input id="op1" required /></label>
+          <label>Operator 2<input id="op2" /></label>
+        </div>
+      </section>
+      <form id="form"></form>
+      <button form="form">Save all to Google Sheet</button>
+      <span id="status"></span>
+      <section class="panel trend-panel">
+        <div class="trend-head">
+          <div>
+            <h2>Check Item Trend</h2>
+            <p class="note">
+              Grouped by Check Item. Startup and Shutdown values are shown
+              together.
+            </p>
+          </div>
+          <label
+            >Check item<select id="trendItem">
+              <option>Loading…</option>
+            </select></label
+          >
+        </div>
+        <div class="trend-controls">
+          <label>From date<input id="trendFrom" type="date" /></label>
+          <label>To date<input id="trendTo" type="date" /></label>
+          <button id="refreshTrends" type="button">Refresh trends</button>
+        </div>
+        <div
+          id="trendLegend"
+          class="trend-legend"
+          aria-label="Chart series"
+        ></div>
+        <div class="chart-scroll">
+          <canvas
+            id="trendChart"
+            width="1100"
+            height="480"
+            role="img"
+            aria-label="Check Item values by inspection date and completion time"
+          ></canvas>
+        </div>
+        <p id="trendStatus" class="note" aria-live="polite">
+          Loading Google Sheet data…
+        </p>
+        <details class="trend-values">
+          <summary>View source values</summary>
+          <div class="table-scroll">
+            <table>
+              <thead id="trendTableHead"></thead>
+              <tbody id="trendTableBody"></tbody>
+            </table>
+          </div>
+        </details>
+        <p class="version">Check Item trends · 2026-10-03</p>
+      </section>
+    </main>
+    <script src="app.js?v=20261003-checkitem-axes"></script>
+  </body>
+</html>
